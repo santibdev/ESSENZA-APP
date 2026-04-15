@@ -327,15 +327,22 @@ ipcMain.handle('get-active-window', async () => {
     if (win) {
       const ownerName = win.owner?.name || '';
       const title = win.title || '';
-      // Excepción especial para navegadores para que el reporte sea limpio (AppName - Pestaña) en vez de al reves
-      if (ownerName && title && !title.includes(ownerName) && !ownerName.includes(title)) {
+      
+      // Si el título es muy corto o vacío, usamos el nombre de la app/proceso
+      if (!title || title.length < 2) {
+        return ownerName || 'Sistema';
+      }
+      
+      // Mezclamos nombre de app y título si son diferentes
+      if (ownerName && !title.includes(ownerName)) {
         return `${ownerName} - ${title}`;
       }
-      return title || ownerName || 'Sistema';
+      
+      return title;
     }
-    return 'Varios / Sistema'
+    return 'Sistema'
   } catch (e) {
-    return 'Desconocido'
+    return 'Sistema'
   }
 })
 
