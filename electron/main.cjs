@@ -27,7 +27,7 @@ ipcMain.on('updater:install-now', () => {
 
 // Verificar actualizaciones periódicamente (cada 1 hora)
 setInterval(() => {
-  if (!isDev) autoUpdater.checkForUpdatesAndNotify()
+  if (!isDev) autoUpdater.checkForUpdates()
 }, 60 * 60 * 1000)
 
 let mainWindow = null
@@ -127,6 +127,8 @@ function createTray() {
 }
 
 // ─── Main window ─────────────────────────────────────────────────────────────
+app.setName('ESSENZA MODELS')
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -354,7 +356,8 @@ app.whenReady().then(() => {
   // Buscar actualizaciones 5 segundos después de que la app cargue
   // (solo en producción, no en dev)
   if (!isDev) {
-    setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 5000)
+    app.setAppUserModelId('com.essenzamodels.monitor')
+    setTimeout(() => autoUpdater.checkForUpdates(), 5000)
   }
 })
 

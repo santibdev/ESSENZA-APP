@@ -1,6 +1,6 @@
 {
   "name": "app-chatters",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "type": "module",
   "description": "Corporate Communication Platform",
   "main": "electron/main.cjs",
@@ -40,8 +40,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.chatters.app",
-    "productName": "APP Chatters",
+    "appId": "com.essenzamodels.monitor",
+    "productName": "ESSENZA MODELS",
     "asar": true,
     "directories": {
       "buildResources": "public",
