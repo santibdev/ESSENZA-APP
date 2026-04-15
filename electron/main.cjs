@@ -227,13 +227,7 @@ async function performBackgroundSync() {
       const activeWin = await import('active-win')
       const win = await activeWin.default()
       if (win) {
-        const ownerName = win.owner?.name || '';
-        const title = win.title || '';
-        if (ownerName && title && !title.includes(ownerName) && !ownerName.includes(title)) {
-          activeApp = `${ownerName} - ${title}`;
-        } else {
-          activeApp = title || ownerName || 'Sistema';
-        }
+        activeApp = win.owner?.name || win.title || 'Sistema';
       }
     } catch {}
 
@@ -336,20 +330,7 @@ ipcMain.handle('get-active-window', async () => {
     const activeWin = await import('active-win')
     const win = await activeWin.default()
     if (win) {
-      const ownerName = win.owner?.name || '';
-      const title = win.title || '';
-      
-      // Si el título es muy corto o vacío, usamos el nombre de la app/proceso
-      if (!title || title.length < 2) {
-        return ownerName || 'Sistema';
-      }
-      
-      // Mezclamos nombre de app y título si son diferentes
-      if (ownerName && !title.includes(ownerName)) {
-        return `${ownerName} - ${title}`;
-      }
-      
-      return title;
+      return win.owner?.name || win.title || 'Sistema';
     }
     return 'Sistema'
   } catch (e) {
