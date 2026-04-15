@@ -77,7 +77,7 @@ interface HistoryEntry {
 
 const auth = useAuthStore()
 const router = useRouter()
-const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'
+const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://essenza-core-production.up.railway.app/api/v1'
 
 // ── Shift state ───────────────────────────────────────────────────────────────
 const isWorking = ref(false)

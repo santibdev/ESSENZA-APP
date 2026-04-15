@@ -26,7 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://essenza-core-production.up.railway.app/api/v1'
       const res = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
