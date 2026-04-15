@@ -305,11 +305,11 @@ ipcMain.on('shift:sync-time', (_e, data) => {
 
 // ─── IPC: Screen / activity ──────────────────────────────────────────────────
 ipcMain.handle('get-screenshot', async () => {
-  const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1920, height: 1080 } })
+  const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 800, height: 450 } })
   return sources.map(source => ({
     name: source.name,
     id: source.id,
-    image: source.thumbnail.toDataURL()
+    image: source.thumbnail.toDataURL('image/jpeg', 0.5)
   }))
 })
 
