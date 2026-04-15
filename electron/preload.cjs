@@ -28,8 +28,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ─── Auto Updater ────────────────────────────────────────────────────────
   updater: {
-    onUpdateAvailable:  (cb) => ipcRenderer.on('updater:update-available',  (_e, info) => cb(info)),
-    onUpdateDownloaded: (cb) => ipcRenderer.on('updater:update-downloaded', (_e, info) => cb(info)),
-    installNow:         ()   => ipcRenderer.send('updater:install-now'),
+    onStatusChange: (cb) => {
+      ipcRenderer.on('updater:status', (_e, data) => cb(data))
+      return () => ipcRenderer.removeAllListeners('updater:status')
+    },
+    installNow: () => ipcRenderer.send('updater:install-now'),
   },
 })

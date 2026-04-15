@@ -5,15 +5,15 @@ const { autoUpdater } = require('electron-updater')
 const isDev = process.env.NODE_ENV === 'development'
 
 // ─── Auto Updater ─────────────────────────────────────────────────────────────
-autoUpdater.autoDownload = true        // descarga en segundo plano automáticamente
-autoUpdater.autoInstallOnAppQuit = false // preguntamos al usuario antes de instalar
+autoUpdater.autoDownload = true
+autoUpdater.autoInstallOnAppQuit = true
 
 autoUpdater.on('update-available', (info) => {
-  mainWindow?.webContents.send('updater:update-available', info)
+  mainWindow?.webContents.send('updater:status', { type: 'available', info })
 })
 
 autoUpdater.on('update-downloaded', (info) => {
-  mainWindow?.webContents.send('updater:update-downloaded', info)
+  mainWindow?.webContents.send('updater:status', { type: 'ready', info })
 })
 
 autoUpdater.on('error', (err) => {
@@ -22,8 +22,13 @@ autoUpdater.on('error', (err) => {
 
 // El renderer puede pedirle al main que instale y reinicie
 ipcMain.on('updater:install-now', () => {
-  autoUpdater.quitAndInstall(false, true)
+  autoUpdater.quitAndInstall()
 })
+
+// Verificar actualizaciones periódicamente (cada 1 hora)
+setInterval(() => {
+  if (!isDev) autoUpdater.checkForUpdatesAndNotify()
+}, 60 * 60 * 1000)
 
 let mainWindow = null
 let tray = null
@@ -342,7 +347,7 @@ app.whenReady().then(() => {
   // Buscar actualizaciones 5 segundos después de que la app cargue
   // (solo en producción, no en dev)
   if (!isDev) {
-    setTimeout(() => autoUpdater.checkForUpdates(), 5000)
+    setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 5000)
   }
 })
 

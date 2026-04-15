@@ -746,6 +746,26 @@ onMounted(async () => {
     }
   } catch { }
 
+  // ─── Auto Updater Listeners ───
+  if (window.electronAPI?.updater) {
+    window.electronAPI.updater.onStatusChange((data: any) => {
+      if (data.type === 'available') {
+        toast.info('Nueva versión disponible', {
+          description: `Se está descargando la versión ${data.info.version}.`
+        })
+      } else if (data.type === 'ready') {
+        toast.success('¡Actualización lista!', {
+          description: 'La nueva versión se descargó. Hacé clic para reiniciar y aplicar.',
+          duration: 15000,
+          action: {
+            label: 'Reiniciar',
+            onClick: () => window.electronAPI.updater.installNow()
+          }
+        })
+      }
+    })
+  }
+
   // Recover active shift from server
   try {
     const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })
