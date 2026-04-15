@@ -51,7 +51,7 @@
       "dist/**/*",
       "electron/**/*",
       "package.json",
-      "!node_modules/${void}"
+      "!node_modules/**/*"
     ],
     "publish": {
       "provider": "github",
