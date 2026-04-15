@@ -277,6 +277,10 @@ ipcMain.on('shift:started', (_e, data) => {
 
   if (shiftTimerInterval) clearInterval(shiftTimerInterval)
   shiftTimerInterval = setInterval(() => {
+    if (!isShiftActive) {
+      clearInterval(shiftTimerInterval)
+      return
+    }
     shiftTimerSeconds++
     updateTrayTooltip()
   }, 1000)
@@ -285,8 +289,13 @@ ipcMain.on('shift:started', (_e, data) => {
 ipcMain.on('shift:stopped', () => {
   isShiftActive = false
   shiftTimerSeconds = 0
-  backgroundSyncData.isPaused = false
-  if (shiftTimerInterval) clearInterval(shiftTimerInterval)
+  backgroundSyncData = { apiUrl: '', token: '', shiftId: null, isPaused: false }
+  
+  if (shiftTimerInterval) {
+    clearInterval(shiftTimerInterval)
+    shiftTimerInterval = null
+  }
+  
   updateTrayTooltip()
 })
 
