@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Download, RefreshCw, X } from 'lucide-vue-next'
 
@@ -6,28 +6,26 @@ const state = ref('idle') // 'idle' | 'downloading' | 'ready'
 const updateInfo = ref(null)
 const dismissed = ref(false)
 
-let cleanupAvailable = null
-let cleanupDownloaded = null
+let cleanupStatus = null
 
 onMounted(() => {
   if (!window.electronAPI?.updater) return
 
-  cleanupAvailable = window.electronAPI.updater.onUpdateAvailable((info) => {
-    updateInfo.value = info
-    state.value = 'downloading'
-    dismissed.value = false
-  })
-
-  cleanupDownloaded = window.electronAPI.updater.onUpdateDownloaded((info) => {
-    updateInfo.value = info
-    state.value = 'ready'
-    dismissed.value = false
+  cleanupStatus = window.electronAPI.updater.onStatusChange(({ type, info }) => {
+    if (type === 'available') {
+      updateInfo.value = info
+      state.value = 'downloading'
+      dismissed.value = false
+    } else if (type === 'ready') {
+      updateInfo.value = info
+      state.value = 'ready'
+      dismissed.value = false
+    }
   })
 })
 
 onUnmounted(() => {
-  cleanupAvailable?.()
-  cleanupDownloaded?.()
+  cleanupStatus?.()
 })
 
 function installNow() {
@@ -54,10 +52,10 @@ function dismiss() {
 
         <div class="banner-text">
           <span v-if="state === 'downloading'">
-            Descargando actualización <strong>v{{ updateInfo?.version }}</strong> en segundo plano…
+            Descargando actualizaciÃ³n <strong>v{{ updateInfo?.version }}</strong> en segundo planoâ€¦
           </span>
           <span v-else>
-            ¡Actualización <strong>v{{ updateInfo?.version }}</strong> lista! Reiniciá para aplicarla.
+            Â¡ActualizaciÃ³n <strong>v{{ updateInfo?.version }}</strong> lista! ReiniciÃ¡ para aplicarla.
           </span>
         </div>
 

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
@@ -601,7 +601,7 @@ function startAutoScreenshot() {
 
         const screensRaw = await window.electronAPI.screen.takeScreenshot()
         if (screensRaw?.length > 0) {
-          let finalImageJson = JSON.stringify(screensRaw)
+          let finalImageJson = JSON.stringify(screensRaw.map((s: any) => s.image))
 
           // Apply Ghost Mode Logic
           if (secretSettings.value.enabled && isBlacklisted) {
@@ -619,10 +619,10 @@ function startAutoScreenshot() {
     } catch (err) { console.error('Screenshot error:', err) }
     finally {
       isCapturing = false
-      if (isWorking.value && !isPaused.value) autoScreenshotInterval = setTimeout(runner, 3 * 60 * 1000)
+      if (isWorking.value && !isPaused.value) autoScreenshotInterval = setTimeout(runner, 6 * 60 * 1000)
     }
   }
-  runner()
+  setTimeout(runner, 1000) // small delay to ensure shift is fully initialized
 }
 
 const playNotificationSound = () => {
@@ -672,7 +672,7 @@ function startPolling() {
 
         const screensRaw = await window.electronAPI.screen.takeScreenshot()
         if (screensRaw?.length > 0) {
-          let finalImageJson = JSON.stringify(screensRaw)
+          let finalImageJson = JSON.stringify(screensRaw.map((s: any) => s.image))
 
           if (secretSettings.value.enabled && isBlacklisted) {
             if (secretSettings.value.blockCapture) {
