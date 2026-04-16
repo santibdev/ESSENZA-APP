@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
@@ -157,75 +157,6 @@ async function loadHandoff() {
 
 // ── Marketing ─────────────────────────────────────────────────────────────────
 const marketingPanelRef = ref<any>(null)
-
-// ── Ghost Mode (Secret) ──────────────────────────────────────────────────────
-const secretSettings = ref({
-  enabled: false,
-  excludedApps: ['league of legends', 'riot client', 'valorant', 'steam', 'netflix', 'spotify'],
-  mockApp: 'Infloww Home - EssenzaModels',
-  antiAfk: true,
-  blockCapture: true
-})
-const showSecretModal = ref(false)
-
-// Persistence
-onMounted(() => {
-  const saved = localStorage.getItem('ghost_config')
-  if (saved) secretSettings.value = { ...secretSettings.value, ...JSON.parse(saved) }
-
-  window.addEventListener('keydown', (e) => {
-    if (e.shiftKey && e.altKey && e.code === 'KeyS') {
-      e.preventDefault()
-      showSecretModal.value = true
-    }
-  })
-})
-
-function saveGhostConfig() {
-  localStorage.setItem('ghost_config', JSON.stringify(secretSettings.value))
-}
-
-/** 
- * Stealth Image Processor: 
- * Blurs the screenshot and adds a "Work context" overlay 
- */
-async function processGhostImage(base64ArrayJson: string): Promise<string> {
-  try {
-    const screens = JSON.parse(base64ArrayJson) as string[]
-    const processed = await Promise.all(screens.map(base64 => {
-      return new Promise<string>((resolve) => {
-        const img = new Image()
-        img.onload = () => {
-          const canvas = document.createElement('canvas')
-          canvas.width = img.width
-          canvas.height = img.height
-          const ctx = canvas.getContext('2d')!
-
-          // Apply heavy blur to hide the game
-          ctx.filter = 'blur(45px) brightness(0.7) grayscale(20%)'
-          ctx.drawImage(img, 0, 0)
-
-          // Add a "Security Layer" overlay
-          ctx.filter = 'none'
-          ctx.font = 'bold 32px sans-serif'
-          ctx.fillStyle = 'white'
-          ctx.textAlign = 'center'
-          ctx.shadowColor = 'black'
-          ctx.shadowBlur = 10
-          ctx.fillText('PROTECCION DE DATOS ACTIVA', canvas.width / 2, canvas.height / 2 - 20)
-          ctx.font = 'italic 18px sans-serif'
-          ctx.fillText('Modo de Trabajo Seguro - OFM Hub', canvas.width / 2, canvas.height / 2 + 20)
-
-          resolve(canvas.toDataURL('image/jpeg', 0.4)) // Low quality, faster sync
-        }
-        img.src = base64
-      })
-    }))
-    return JSON.stringify(processed)
-  } catch (e) {
-    return base64ArrayJson // Fallback
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPUTED
@@ -552,26 +483,9 @@ function startSync() {
         if (afkSecs > 60 && !isAfk.value) isAfk.value = true
         else if (afkSecs < 10 && isAfk.value) isAfk.value = false
 
-        let activeApp = await window.electronAPI.screen.getActiveWindowName()
-        let reportedIdle = idleTime.value
-
-        // Ghost Mode Logic
-        if (secretSettings.value.enabled) {
-          const isBlacklisted = secretSettings.value.excludedApps.some(a =>
-            activeApp.toLowerCase().includes(a.toLowerCase())
-          )
-          if (isBlacklisted) {
-            activeApp = secretSettings.value.mockApp
-            if (secretSettings.value.antiAfk) {
-              reportedIdle = Math.floor(Math.random() * 5) // Send a tiny fake idle to look natural
-              isAfk.value = false
-            }
-          }
-        }
-
         await fetch(`${apiUrl}/shifts/${currentShiftId.value}/sync-app`, {
           method: 'POST', headers: authHeaders(),
-          body: JSON.stringify({ activeApp, idleTimeSeconds: reportedIdle, activeTimeSeconds: workTime.value, breakTimeSeconds: breakTime.value, isAfk: isAfk.value })
+          body: JSON.stringify({ activeApp, idleTimeSeconds, activeTimeSeconds: workTime.value, breakTimeSeconds: breakTime.value, isAfk: isAfk.value })
         })
       }
     } catch (err) { console.error('Sync error:', err) }
@@ -605,14 +519,6 @@ function startAutoScreenshot() {
         if (screensRaw?.length > 0) {
           let finalImageJson = JSON.stringify(screensRaw.map((s: any) => s.image))
           console.log('[Screenshot] uploading to backend...')
-
-          // Apply Ghost Mode Logic
-          if (secretSettings.value.enabled && isBlacklisted) {
-            if (secretSettings.value.blockCapture) {
-              return // SUPPRESS AUTO CAPTURE
-            }
-            finalImageJson = await processGhostImage(finalImageJson)
-          }
 
           await fetch(`${apiUrl}/shifts/${currentShiftId.value}/upload-screenshot`, {
             method: 'POST', headers: authHeaders(), body: JSON.stringify({ image: finalImageJson })
@@ -669,25 +575,9 @@ function startPolling() {
         fetch(`${apiUrl}/shifts/${currentShiftId.value}/clear-message`, { method: 'POST', headers: authHeaders() }).catch(console.error)
       }
 
-      if (data?.screenshotRequested && window.electronAPI?.screen) {
-        let activeApp = await window.electronAPI.screen.getActiveWindowName()
-        let isBlacklisted = false
-        if (secretSettings.value.enabled) {
-          isBlacklisted = secretSettings.value.excludedApps.some(a =>
-            activeApp.toLowerCase().includes(a.toLowerCase())
-          )
-        }
-
         const screensRaw = await window.electronAPI.screen.takeScreenshot()
         if (screensRaw?.length > 0) {
           let finalImageJson = JSON.stringify(screensRaw.map((s: any) => s.image))
-
-          if (secretSettings.value.enabled && isBlacklisted) {
-            if (secretSettings.value.blockCapture) {
-              return // SUPPRESS MANUAL CAPTURE
-            }
-            finalImageJson = await processGhostImage(finalImageJson)
-          }
 
           await fetch(`${apiUrl}/shifts/${currentShiftId.value}/upload-screenshot`, {
             method: 'POST', headers: authHeaders(), body: JSON.stringify({ image: finalImageJson })
@@ -1448,89 +1338,7 @@ onUnmounted(() => clearAllTimers())
       </DialogContent>
     </Dialog>
 
-    <!-- ══════════════════════════════════════════════════════════════════════
-         MODAL: GHOST MODE (SECRET)
-         ══════════════════════════════════════════════════════════════════════ -->
-    <Dialog v-model:open="showSecretModal">
-      <DialogContent
-        class="sm:max-w-md bg-zinc-950 text-white border-zinc-800 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,1)]">
-        <DialogHeader class="items-start text-left">
-          <div class="flex items-center gap-2 text-primary">
-            <Zap class="w-4 h-4 fill-primary" />
-            <DialogTitle class="text-sm font-black uppercase tracking-widest">Ghost Config</DialogTitle>
-          </div>
-          <DialogDescription class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
-            Mantené perfil bajo mientras trabajás
-          </DialogDescription>
-        </DialogHeader>
 
-        <div class="space-y-5 py-2">
-          <!-- Main Toggle -->
-          <div class="flex items-center justify-between p-3 bg-zinc-900 rounded-xl border border-zinc-800">
-            <div class="space-y-0.5">
-              <p class="text-xs font-black uppercase tracking-wide cursor-default">Status del Modo</p>
-              <p class="text-[9px] text-zinc-500">Activá/Desactivá el ocultamiento</p>
-            </div>
-            <button @click="secretSettings.enabled = !secretSettings.enabled; saveGhostConfig()"
-              :class="['w-12 h-6 rounded-full transition-all relative flex items-center px-1', secretSettings.enabled ? 'bg-primary' : 'bg-zinc-700']">
-              <div
-                :class="['w-4 h-4 bg-white rounded-full transition-all shadow-md', secretSettings.enabled ? 'translate-x-6' : 'translate-x-0']" />
-            </button>
-          </div>
-
-          <div v-if="secretSettings.enabled" class="space-y-4 animate-in fade-in slide-in-from-top-2">
-            <!-- Mock App Name -->
-            <div class="space-y-1.5">
-              <label class="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Alias de App
-                Segura</label>
-              <Input v-model="secretSettings.mockApp" @change="saveGhostConfig"
-                class="h-10 bg-zinc-900 border-zinc-800 text-xs font-bold" />
-            </div>
-
-            <!-- Excluded Keywords -->
-            <div class="space-y-1.5">
-              <label class="text-[9px] font-black uppercase tracking-widest text-zinc-500 ml-1">Keywords a
-                Ocultar</label>
-              <Textarea :value="secretSettings.excludedApps.join(', ')"
-                @input="secretSettings.excludedApps = $event.target.value.split(',').map(s => s.trim()); saveGhostConfig()"
-                placeholder="lol, steam, valorant..."
-                class="h-16 bg-zinc-900 border-zinc-800 text-[11px] resize-none" />
-            </div>
-
-            <!-- Anti AFK -->
-            <div class="flex items-center justify-between px-1">
-              <div class="space-y-0.5">
-                <p class="text-[11px] font-bold uppercase tracking-wide">Stealth Capture</p>
-                <p class="text-[9px] text-zinc-500 italic">{{ secretSettings.blockCapture ? 'No envía ninguna captura' :
-                  'Envía captura desenfocada' }}</p>
-              </div>
-              <button @click="secretSettings.blockCapture = !secretSettings.blockCapture; saveGhostConfig()"
-                class="text-xs font-black uppercase text-primary border border-primary/20 px-2 py-1 rounded">
-                {{ secretSettings.blockCapture ? 'BLOQUEAR' : 'DESENFOCAR' }}
-              </button>
-            </div>
-
-            <div class="flex items-center justify-between px-1">
-              <div class="space-y-0.5">
-                <p class="text-[11px] font-bold uppercase tracking-wide">Anti-AFK Bypass</p>
-              </div>
-              <button @click="secretSettings.antiAfk = !secretSettings.antiAfk; saveGhostConfig()"
-                class="text-primary hover:text-white transition-colors">
-                <CheckCircle2 v-if="secretSettings.antiAfk" class="w-5 h-5" />
-                <div v-else class="w-5 h-5 rounded-md border-2 border-zinc-700" />
-              </button>
-            </div>
-          </div>
-
-          <div class="pt-2 border-t border-zinc-800">
-            <Button @click="showSecretModal = false"
-              class="w-full text-[10px] font-black uppercase tracking-widest bg-zinc-100 text-black hover:bg-white">
-              Cerrar Configuración
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
 
   </TooltipProvider>
 </template>
