@@ -258,13 +258,6 @@ function startWorkTimer() {
   }, 1000)
 }
 
-function clearAllTimers() {
-  if (timerInterval) clearInterval(timerInterval)
-  if (breakInterval) clearInterval(breakInterval)
-  if (pollingInterval) clearTimeout(pollingInterval)
-  if (syncInterval) clearTimeout(syncInterval)
-  if (autoScreenshotInterval) clearTimeout(autoScreenshotInterval)
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHIFT ACTIONS
@@ -488,7 +481,7 @@ function startSync() {
         else if (afkSecs < 10 && isAfk.value) isAfk.value = false
 
         let activeApp = await window.electronAPI.screen.getActiveWindowName()
-        
+
         await fetch(`${apiUrl}/shifts/${currentShiftId.value}/sync-app`, {
           method: 'POST', headers: authHeaders(),
           body: JSON.stringify({ activeApp, idleTimeSeconds: idleTime.value, activeTimeSeconds: workTime.value, breakTimeSeconds: breakTime.value, isAfk: isAfk.value })
@@ -604,7 +597,7 @@ function resetState() {
   breakTime.value = 0
   idleTime.value = 0
   observations.value = ''
-  
+
   clearAllTimers()
 }
 
