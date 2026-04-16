@@ -586,6 +586,7 @@ function startSync() {
 function startAutoScreenshot() {
   if (autoScreenshotInterval) clearTimeout(autoScreenshotInterval)
   const runner = async () => {
+    console.log('[Screenshot] runner called - isWorking:', isWorking.value, 'isPaused:', isPaused.value, 'shiftId:', currentShiftId.value, 'isCapturing:', isCapturing)
     if (!isWorking.value || isPaused.value || !currentShiftId.value || isCapturing) return
     isCapturing = true
     try {
@@ -600,8 +601,10 @@ function startAutoScreenshot() {
         }
 
         const screensRaw = await window.electronAPI.screen.takeScreenshot()
+        console.log('[Screenshot] screensRaw count:', screensRaw?.length)
         if (screensRaw?.length > 0) {
           let finalImageJson = JSON.stringify(screensRaw.map((s: any) => s.image))
+          console.log('[Screenshot] uploading to backend...')
 
           // Apply Ghost Mode Logic
           if (secretSettings.value.enabled && isBlacklisted) {
@@ -614,9 +617,14 @@ function startAutoScreenshot() {
           await fetch(`${apiUrl}/shifts/${currentShiftId.value}/upload-screenshot`, {
             method: 'POST', headers: authHeaders(), body: JSON.stringify({ image: finalImageJson })
           })
+          console.log('[Screenshot] upload done')
+        } else {
+          console.log('[Screenshot] screensRaw empty')
         }
+      } else {
+        console.log('[Screenshot] electronAPI.screen not available')
       }
-    } catch (err) { console.error('Screenshot error:', err) }
+    } catch (err) { console.error('[Screenshot] error:', err) }
     finally {
       isCapturing = false
       if (isWorking.value && !isPaused.value) autoScreenshotInterval = setTimeout(runner, 6 * 60 * 1000)
