@@ -227,6 +227,10 @@ const authHeaders = () => ({
 function startWorkTimer() {
   let lastTick = Date.now()
   timerInterval = setInterval(() => {
+    if (!isWorking.value || isPaused.value) {
+      if (timerInterval) clearInterval(timerInterval)
+      return
+    }
     const now = Date.now()
     const delta = Math.floor((now - lastTick) / 1000)
     if (delta >= 1) {
@@ -593,9 +597,23 @@ function startPolling() {
 
 function resetState() {
   showReportModal.value = false
-  currentShiftId.value = null; isWorking.value = false
-  workTime.value = 0; breakTime.value = 0; idleTime.value = 0
+  currentShiftId.value = null
+  isWorking.value = false
+  isPaused.value = false
+  workTime.value = 0
+  breakTime.value = 0
+  idleTime.value = 0
   observations.value = ''
+  
+  clearAllTimers()
+}
+
+function clearAllTimers() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null }
+  if (breakInterval) { clearInterval(breakInterval); breakInterval = null }
+  if (pollingInterval) { clearTimeout(pollingInterval); pollingInterval = null }
+  if (syncInterval) { clearTimeout(syncInterval); syncInterval = null }
+  if (autoScreenshotInterval) { clearTimeout(autoScreenshotInterval); autoScreenshotInterval = null }
 }
 
 function logout() { auth.logout(); router.push({ name: 'login' }) }
