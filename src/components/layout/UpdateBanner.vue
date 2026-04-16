@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Download, RefreshCw, X } from 'lucide-vue-next'
 
@@ -52,10 +52,10 @@ function dismiss() {
 
         <div class="banner-text">
           <span v-if="state === 'downloading'">
-            Descargando actualizaciÃ³n <strong>v{{ updateInfo?.version }}</strong> en segundo planoâ€¦
+            Descargando actualización <strong>v{{ updateInfo?.version }}</strong> en segundo plano...
           </span>
           <span v-else>
-            Â¡ActualizaciÃ³n <strong>v{{ updateInfo?.version }}</strong> lista! ReiniciÃ¡ para aplicarla.
+            ¡Actualización <strong>v{{ updateInfo?.version }}</strong> lista! Reiniciá para aplicarla.
           </span>
         </div>
 
