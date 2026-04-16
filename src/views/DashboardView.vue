@@ -483,9 +483,11 @@ function startSync() {
         if (afkSecs > 60 && !isAfk.value) isAfk.value = true
         else if (afkSecs < 10 && isAfk.value) isAfk.value = false
 
+        let activeApp = await window.electronAPI.screen.getActiveWindowName()
+        
         await fetch(`${apiUrl}/shifts/${currentShiftId.value}/sync-app`, {
           method: 'POST', headers: authHeaders(),
-          body: JSON.stringify({ activeApp, idleTimeSeconds, activeTimeSeconds: workTime.value, breakTimeSeconds: breakTime.value, isAfk: isAfk.value })
+          body: JSON.stringify({ activeApp, idleTimeSeconds: idleTime.value, activeTimeSeconds: workTime.value, breakTimeSeconds: breakTime.value, isAfk: isAfk.value })
         })
       }
     } catch (err) { console.error('Sync error:', err) }
@@ -505,15 +507,6 @@ function startAutoScreenshot() {
     isCapturing = true
     try {
       if (window.electronAPI?.screen) {
-        const activeApp = await window.electronAPI.screen.getActiveWindowName()
-        let isBlacklisted = false
-
-        if (secretSettings.value.enabled) {
-          isBlacklisted = secretSettings.value.excludedApps.some(a =>
-            activeApp.toLowerCase().includes(a.toLowerCase())
-          )
-        }
-
         const screensRaw = await window.electronAPI.screen.takeScreenshot()
         console.log('[Screenshot] screensRaw count:', screensRaw?.length)
         if (screensRaw?.length > 0) {
@@ -575,6 +568,7 @@ function startPolling() {
         fetch(`${apiUrl}/shifts/${currentShiftId.value}/clear-message`, { method: 'POST', headers: authHeaders() }).catch(console.error)
       }
 
+      if (data?.screenshotRequested && window.electronAPI?.screen) {
         const screensRaw = await window.electronAPI.screen.takeScreenshot()
         if (screensRaw?.length > 0) {
           let finalImageJson = JSON.stringify(screensRaw.map((s: any) => s.image))
