@@ -10,8 +10,6 @@ type TabType = 'tracker' | 'history' | 'crm' | 'creative' | 'context'
 const props = defineProps<{
   activeTab: TabType
   isMarketing: boolean
-  currentTime: string
-  currentDate: string
   open?: boolean
 }>()
 
@@ -36,7 +34,7 @@ const sections = [
     label: 'Estrategia Agency',
     items: [
       { id: 'crm' as TabType, label: 'Gestión de Leads', icon: Users, color: 'text-violet-500 dark:text-violet-400', bg: 'bg-violet-500/10 dark:bg-violet-500/15', badge: null, show: props.isMarketing },
-      { id: 'creative' as TabType, label: 'Muro Creativo', icon: Lightbulb, color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500/10 dark:bg-amber-500/15', badge: null, show: true },
+      { id: 'creative' as TabType, label: 'Muro Creativo', icon: Lightbulb, color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500/10 dark:bg-amber-500/15', badge: null, show: props.isMarketing },
       { id: 'context' as TabType, label: 'Entrega de Relevo', icon: ClipboardCheck, color: 'text-rose-500 dark:text-rose-400', bg: 'bg-rose-500/10 dark:bg-rose-500/15', badge: null, show: true },
     ]
   }
@@ -133,21 +131,6 @@ function selectTab(id: TabType) {
           </div>
         </template>
       </nav>
-
-      <!-- Clock -->
-      <div class="mx-4 mb-3 mt-1">
-        <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
-          <p class="text-[10px] font-semibold text-zinc-400 dark:text-zinc-600 uppercase tracking-widest mb-1.5">
-            Hora del Sistema
-          </p>
-          <p class="text-xl font-bold text-zinc-900 dark:text-zinc-50 font-mono leading-none tabular-nums">
-            {{ currentTime }}
-          </p>
-          <p class="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium mt-1.5 capitalize leading-none">
-            {{ currentDate }}
-          </p>
-        </div>
-      </div>
 
       <div class="mx-5 h-px bg-zinc-100 dark:bg-zinc-800" />
 

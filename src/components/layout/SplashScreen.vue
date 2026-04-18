@@ -2,94 +2,310 @@
 import { ref, onMounted } from 'vue'
 
 const progress = ref(0)
+const label = ref('Iniciando')
 
 onMounted(() => {
-  // Simulate loading progress
   const steps = [
-    { target: 35, delay: 200 },
-    { target: 65, delay: 600 },
-    { target: 85, delay: 1100 },
-    { target: 100, delay: 1900 },
+    { target: 30, delay: 400, label: 'Iniciando' },
+    { target: 60, delay: 900, label: 'Cargando' },
+    { target: 85, delay: 1500, label: 'Preparando' },
+    { target: 100, delay: 2300, label: 'Listo' },
   ]
-
-  steps.forEach(({ target, delay }) => {
+  steps.forEach(({ target, delay, label: lbl }) => {
     setTimeout(() => {
       progress.value = target
+      label.value = lbl
     }, delay)
   })
 })
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background overflow-hidden">
+  <div class="splash">
+    <!-- Textura de grilla sutil -->
+    <svg class="grid-texture" viewBox="0 0 400 400" preserveAspectRatio="none">
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width="0.4" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#grid)" />
+    </svg>
 
-    <!-- Ambient glow blobs -->
-    <div class="absolute inset-0 pointer-events-none overflow-hidden">
-      <div
-        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-               w-[500px] h-[500px] rounded-full
-               bg-primary/10 blur-[100px]"
-      />
-      <div
-        class="absolute top-1/4 right-1/4
-               w-48 h-48 rounded-full
-               bg-primary/5 blur-[60px]"
-      />
+    <div class="accent-top" />
+
+    <div class="content">
+      <!-- Logo: reemplazá el span por <img src="logo.svg"> si tenés imagen -->
+      <img class="logo-wrap" src="../../assets/img/isologo.png">
+
+      <h1 class="brand-name">Essenza</h1>
+
+      <div class="divider-row">
+        <span class="dline" />
+        <span class="sub-brand">Models</span>
+        <span class="dline" />
+      </div>
+
+      <p class="tagline">Management Platform</p>
+
+      <div class="progress-wrap">
+        <div class="progress-track">
+          <div class="progress-fill" :style="{ width: progress + '%' }">
+            <div class="shimmer" />
+          </div>
+        </div>
+        <p class="progress-label">{{ label }}</p>
+      </div>
     </div>
 
-    <!-- Main content -->
-    <div class="relative flex flex-col items-center gap-10 animate-fade-up">
-
-      <!-- Logo mark -->
-      <div class="splash-logo relative">
-        <div
-          class="w-20 h-20 rounded-2xl bg-primary
-                 flex items-center justify-center
-                 shadow-2xl shadow-primary/30"
-        >
-          <span class="text-4xl font-bold text-white tracking-tighter select-none">C</span>
-        </div>
-        <!-- Glow ring -->
-        <div
-          class="absolute inset-0 rounded-2xl bg-primary/30 blur-xl scale-110 -z-10"
-        />
-      </div>
-
-      <!-- App name -->
-      <div class="text-center space-y-1.5">
-        <h1 class="text-xl font-bold tracking-[0.3em] uppercase text-foreground">
-          Chatters
-        </h1>
-        <p class="text-xs text-muted-foreground tracking-[0.15em] uppercase">
-          Corporate Communication Platform
-        </p>
-      </div>
-
-      <!-- Progress bar -->
-      <div class="w-44 space-y-2">
-        <div class="h-[2px] w-full bg-border rounded-full overflow-hidden">
-          <div
-            class="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-            :style="{ width: `${progress}%` }"
-          />
-        </div>
-        <p class="text-center text-[10px] text-muted-foreground tracking-widest">
-          INICIANDO...
-        </p>
-      </div>
-
-    </div>
+    <div class="accent-bottom" />
   </div>
 </template>
 
 <style scoped>
-.splash-logo {
-  animation: logoPop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+/* ─── Tokens de color ─────────────────────────────────────────── */
+.splash {
+  --gold: #c9a96e;
+  --gold-light: #e8d5a3;
+  --gold-dim: rgba(201, 169, 110, 0.35);
+}
+
+/* ─── Layout base ────────────────────────────────────────────── */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: 'Georgia', serif;
+
+  /* shadcn/vue: se adapta solo al modo claro/oscuro */
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* ─── Textura ────────────────────────────────────────────────── */
+.grid-texture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.04;
+  color: hsl(var(--foreground));
+}
+
+/* ─── Líneas de acento dorado ────────────────────────────────── */
+.accent-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent,
+      var(--gold) 30%,
+      var(--gold-light) 50%,
+      var(--gold) 70%,
+      transparent);
+}
+
+.accent-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent,
+      var(--gold-dim) 50%,
+      transparent);
+}
+
+/* ─── Contenido central ──────────────────────────────────────── */
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ─── Logo ───────────────────────────────────────────────────── */
+.logo-wrap {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: logoPop 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+}
+
+.tl {
+  top: -4px;
+  left: -4px;
+  border-top: 2px solid var(--gold);
+  border-left: 2px solid var(--gold);
+}
+
+.tr {
+  top: -4px;
+  right: -4px;
+  border-top: 2px solid var(--gold);
+  border-right: 2px solid var(--gold);
+}
+
+.bl {
+  bottom: -4px;
+  left: -4px;
+  border-bottom: 2px solid var(--gold);
+  border-left: 2px solid var(--gold);
+}
+
+.br {
+  bottom: -4px;
+  right: -4px;
+  border-bottom: 2px solid var(--gold);
+  border-right: 2px solid var(--gold);
+}
+
+.monogram {
+  font-size: 28px;
+  color: var(--gold);
+  font-style: italic;
+}
+
+/* ─── Tipografía ─────────────────────────────────────────────── */
+.brand-name {
+  margin: 0 0 6px;
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  /* hereda hsl(--foreground) del padre */
+}
+
+.divider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.dline {
+  width: 28px;
+  height: 1px;
+  background: var(--gold);
+  opacity: 0.7;
+}
+
+.sub-brand {
+  font-size: 11px;
+  letter-spacing: 0.55em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.tagline {
+  margin: 0 0 48px;
+  font-size: 10px;
+  font-style: italic;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+  opacity: 0.6;
+}
+
+/* ─── Barra de progreso ──────────────────────────────────────── */
+.progress-wrap {
+  width: 160px;
+}
+
+.progress-track {
+  height: 1px;
+  background: hsl(var(--border));
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #8a6b3a, var(--gold-light), var(--gold));
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 100%;
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.6),
+      transparent);
+  animation: shimmer 1.8s infinite;
+}
+
+.progress-label {
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  margin: 10px 0 0;
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+}
+
+/* ─── Animaciones ────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes logoPop {
-  0%   { opacity: 0; transform: scale(0.6) translateY(16px); }
-  70%  { opacity: 1; transform: scale(1.05) translateY(-4px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+  0% {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(500%);
+  }
 }
 </style>

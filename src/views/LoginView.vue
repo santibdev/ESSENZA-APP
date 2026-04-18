@@ -7,8 +7,15 @@ import { Input as UiInput } from '@/components/ui/input'
 import { Button as UiButton } from '@/components/ui/button'
 import { Label as UiLabel } from '@/components/ui/label'
 import { toast } from 'vue-sonner'
+import { useThemeStore } from '@/stores/theme'
+import darkLogo from '@/assets/img/logo-full-white.png'
+import lightLogo from '@/assets/img/logo-full-dark.png'
+
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
+
+const currentLogo = computed(() => themeStore.isDark ? darkLogo : lightLogo)
 
 const form = reactive({ username: '', password: '' })
 const showPassword = ref(false)
@@ -55,8 +62,8 @@ async function handleLogin() {
         <div class="px-8 pt-8 pb-6 border-b border-border">
           <div class="flex items-center gap-4">
             <div class="w-11 h-11 rounded-xl bg-primary flex items-center justify-center
-                        flex-shrink-0 shadow-md shadow-primary/30">
-              <span class="text-lg font-black text-white select-none">C</span>
+                        flex-shrink-0 shadow-md shadow-primary/30 overflow-hidden p-1">
+              <img :src="currentLogo" alt="Logo" class="w-full h-full object-contain" />
             </div>
             <div>
               <h1 class="text-[15px] font-bold text-foreground leading-tight tracking-tight">

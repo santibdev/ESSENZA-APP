@@ -10,9 +10,9 @@ import 'vue-sonner/style.css'
 const themeStore = useThemeStore()
 const showSplash = ref(true)
 
-onMounted(() => {
-  themeStore.initTheme()
+themeStore.initTheme()
 
+onMounted(() => {
   // Splash duration: 2.4s (matches progress bar animation)
   setTimeout(() => {
     showSplash.value = false
@@ -22,7 +22,7 @@ onMounted(() => {
 
 <template>
   <Toaster position="top-center" richColors />
-  <div class="app-root h-screen flex flex-col overflow-hidden bg-background">
+  <div class="app-root h-screen flex flex-col overflow-hidden bg-zinc-50 dark:bg-black">
     <Transition name="splash" mode="out-in">
 
       <!-- Splash Screen -->
@@ -33,7 +33,7 @@ onMounted(() => {
         <TitleBar />
         <UpdateBanner />
 
-        <main class="flex-1 overflow-hidden">
+        <main class="flex-1 overflow-hidden ">
           <RouterView v-slot="{ Component }">
             <Transition name="page" mode="out-in">
               <component :is="Component" class="h-full" />
@@ -58,6 +58,7 @@ onMounted(() => {
 .splash-leave-active {
   transition: opacity 0.55s ease;
 }
+
 .splash-enter-from,
 .splash-leave-to {
   opacity: 0;
@@ -68,10 +69,12 @@ onMounted(() => {
 .page-leave-active {
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
+
 .page-enter-from {
   opacity: 0;
   transform: translateY(8px);
 }
+
 .page-leave-to {
   opacity: 0;
   transform: translateY(-8px);

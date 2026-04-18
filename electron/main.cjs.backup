@@ -36,16 +36,27 @@ let isShiftActive = false
 let shiftTimerSeconds = 0
 let shiftTimerInterval = null
 
-// Build tray icon using Essenza logo
+// Build a 16x16 RGBA tray icon programmatically — works reliably on all platforms
 function buildTrayIcon() {
-  const iconPath = path.join(__dirname, '../public/essenza.ico')
-  let icon = nativeImage.createFromPath(iconPath)
-  
-  // Resize to proper tray size
-  const size = process.platform === 'darwin' ? 22 : 16
-  icon = icon.resize({ width: size, height: size })
-  
-  return icon
+  const size = 16
+  const buf = Buffer.alloc(size * size * 4) // RGBA
+  const [r, g, b] = isShiftActive ? [16, 185, 129] : [107, 114, 128] // emerald-500 vs gray-500
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const cx = x - size / 2 + 0.5
+      const cy = y - size / 2 + 0.5
+      const dist = Math.sqrt(cx * cx + cy * cy)
+      const alpha = dist < (size / 2 - 0.5) ? 255 : 0
+      const i = (y * size + x) * 4
+      buf[i]     = r
+      buf[i + 1] = g
+      buf[i + 2] = b
+      buf[i + 3] = alpha
+    }
+  }
+
+  return nativeImage.createFromBuffer(buf, { width: size, height: size })
 }
 
 function formatTrayTime(secs) {
@@ -56,8 +67,8 @@ function formatTrayTime(secs) {
 
 function updateTrayTooltip() {
   if (!tray) return
-  const status = isShiftActive ? `Turno activo — ${formatTrayTime(shiftTimerSeconds)}` : 'Sin turno activo'
-  tray.setToolTip(`Essenza Models\n${status}`)
+  const status = isShiftActive ? `🟢 Turno activo — ${formatTrayTime(shiftTimerSeconds)}` : '⚫ Sin turno activo'
+  tray.setToolTip(`ESSENZA MODELS\n${status}`)
   tray.setTitle(isShiftActive ? formatTrayTime(shiftTimerSeconds) : '')
 }
 
@@ -66,7 +77,7 @@ function buildContextMenu() {
     {
       label: isShiftActive
         ? `🟢 Trabajando — ${formatTrayTime(shiftTimerSeconds)}`
-        : 'Sin turno activo',
+        : '⚫ Sin turno activo',
       enabled: false,
     },
     { type: 'separator' },
@@ -90,7 +101,7 @@ function buildContextMenu() {
 
 function createTray() {
   tray = new Tray(buildTrayIcon())
-  tray.setToolTip('Essenza Models')
+  tray.setToolTip('ESSENZA MODELS')
 
   // Left-click → show/focus window
   tray.on('click', () => {
@@ -116,7 +127,7 @@ function createTray() {
 }
 
 // ─── Main window ─────────────────────────────────────────────────────────────
-app.setName('Essenza Models')
+app.setName('ESSENZA MODELS')
 
 function createWindow() {
   mainWindow = new BrowserWindow({
