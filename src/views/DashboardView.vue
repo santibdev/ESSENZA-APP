@@ -2,34 +2,32 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
-import {
-  LogOut, Play, Coffee, Clock, AlertCircle, CheckCircle2,
-  TrendingUp, Zap, Menu, ChevronRight,
-  Users, X, AlertTriangle, Plus,
-  Activity, MessageSquare, Target, Layers, List, Timer
-} from 'lucide-vue-next'
-
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-
-import UserShiftHistory from '@/components/dashboard/UserShiftHistory.vue'
-import MarketingPanel from '@/components/dashboard/MarketingPanel.vue'
-import CreativityWall from '@/components/dashboard/CreativityWall.vue'
-import AnnouncementsBanner from '@/components/dashboard/AnnouncementsBanner.vue'
-import LeadsKanban from '@/components/dashboard/LeadsKanban.vue'
-import ModelHandoffCard from '@/components/dashboard/ModelHandoffCard.vue'
 import { toast } from 'vue-sonner'
 
+// UI Primitives
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
+import { AlertTriangle, CheckCircle2, Plus, X, Play, Zap } from 'lucide-vue-next'
+
+// Modular Components
+import DashboardSidebar from '@/components/dashboard/DashboardSidebar.vue'
+import Topbar from '@/components/dashboard/Topbar.vue'
+import TrackerCard from '@/components/dashboard/TrackerCard.vue'
+import StatsCards from '@/components/dashboard/StatsCards.vue'
+import NotesCard from '@/components/dashboard/NotesCard.vue'
+import AnnouncementsBanner from '@/components/dashboard/AnnouncementsBanner.vue'
+import ModelHandoffCard from '@/components/dashboard/ModelHandoffCard.vue'
+import MarketingPanel from '@/components/dashboard/MarketingPanel.vue'
+import CreativityWall from '@/components/dashboard/CreativityWall.vue'
+import LeadsKanban from '@/components/dashboard/LeadsKanban.vue'
+import UserShiftHistory from '@/components/dashboard/UserShiftHistory.vue'
+
+// Types
 interface AssignedModel { id: number; name: string; alias?: string }
 interface HistoryEntry {
   id: number; createdAt: string; type: string
@@ -44,7 +42,7 @@ const auth = useAuthStore()
 const router = useRouter()
 const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://essenza-core-production.up.railway.app/api/v1'
 
-// ── Shift state ───────────────────────────────────────────────────────────────
+// --- State ---
 const isWorking = ref(false)
 const isPaused = ref(false)
 const isAfk = ref(false)
@@ -63,7 +61,7 @@ const userOffDays = ref('')
 const shiftTarget = ref<number>(0)
 const assignedModels = ref<AssignedModel[]>([])
 const modelsHistory = ref<Record<number, HistoryEntry[]>>({})
-const activeTab = ref('tracker')
+const activeTab = ref<'tracker' | 'history' | 'crm' | 'creative' | 'context'>('tracker')
 const sidebarOpen = ref(false)
 
 const startEarnings = ref(0)
@@ -77,34 +75,9 @@ const emergencyReason = ref('')
 
 const perModelReports = ref<ModelExitReport[]>([])
 const selectedModelReportIdx = ref(0)
+const shiftTemplates = ref<any[]>([])
 
-function initModelReports() {
-  selectedModelReportIdx.value = 0
-  perModelReports.value = assignedModels.value.map(m => ({
-    modelId: m.id, modelName: m.name, handoffNotes: '',
-    spenders: [{ name: '', username: '', amount: '' }]
-  }))
-}
-
-function addSpender(mIdx: number) {
-  perModelReports.value[mIdx].spenders.push({ name: '', username: '', amount: '' })
-}
-function removeSpender(mIdx: number, sIdx: number) {
-  perModelReports.value[mIdx].spenders.splice(sIdx, 1)
-}
-
-const handoffData = ref<Record<number, any[]>>({})
-async function loadHandoff() {
-  if (!assignedModels.value.length) return
-  try {
-    const ids = assignedModels.value.map(m => m.id).join(',')
-    const res = await fetch(`${apiUrl}/admin/models/handoff?modelIds=${ids}`, { headers: authHeaders() })
-    if (res.ok) handoffData.value = await res.json()
-  } catch { }
-}
-
-const marketingPanelRef = ref<any>(null)
-
+// --- Computed ---
 const isMarketing = computed(() => auth.user?.role === 'ROLE_MARKETING')
 const SHIFT_TARGET = computed(() => shiftTarget.value || auth.user?.shiftTargetSeconds || 28800)
 const effectiveWorkSeconds = computed(() => Math.max(0, workTime.value - idleTime.value))
@@ -121,13 +94,23 @@ const statusLabel = computed(() => {
   if (isAfk.value) return 'AFK'
   return 'Activo'
 })
-const statusDot = computed(() => {
-  if (!isWorking.value) return 'bg-muted-foreground/40'
-  if (isPaused.value) return 'bg-amber-400'
-  if (isAfk.value) return 'bg-orange-400'
-  return 'bg-emerald-400'
+const statusColor = computed(() => {
+  if (!isWorking.value) return 'bg-zinc-500'
+  if (isPaused.value) return 'bg-amber-500'
+  if (isAfk.value) return 'bg-orange-500'
+  return 'bg-emerald-500'
 })
+const statusDot = computed(() => statusColor.value)
 
+// --- Fetch Templates ---
+async function fetchTemplates() {
+  try {
+    const res = await api.get('/shifts/templates/batch')
+    shiftTemplates.value = res.data || []
+  } catch (e) {
+    console.error('Error fetching templates:', e)
+  }
+}
 let timerInterval: any = null
 let breakInterval: any = null
 let pollingInterval: any = null
@@ -138,12 +121,6 @@ let isPolling = false
 let isCapturing = false
 let hasNotifiedTargetReached = false
 
-const formatTime = (secs: number): string => {
-  const h = Math.floor(secs / 3600)
-  const m = Math.floor((secs % 3600) / 60)
-  const s = secs % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
 const authHeaders = () => ({
   'Authorization': `Bearer ${auth.user?.token}`,
   'Content-Type': 'application/json'
@@ -173,6 +150,7 @@ function startWorkTimer() {
   }, 1000)
 }
 
+// --- Shift Actions ---
 async function startShift(isExtra = false) {
   try {
     const endpoint = isExtra ? `${apiUrl}/shifts/start-extra` : `${apiUrl}/shifts/start`
@@ -210,58 +188,45 @@ async function endShiftPrompt() {
   clickTimeout = setTimeout(() => { clickCount = 0 }, 5000)
 }
 
+function formatTime(secs: number): string {
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  const s = secs % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
 async function submitEndShift(startExtras: boolean) {
   try {
     let payload: any = {}
     const finalObs = isForceExit.value
       ? `[CIERRE FORZADO] Razón: ${emergencyReason.value}. ${observations.value ? '\nNotas: ' + observations.value : ''}`
       : observations.value
-    if (isMarketing.value) {
-      const md = marketingPanelRef.value?.getMarketingData() || {}
-      payload = { observations: finalObs, reelsEdited: md.reelsEdited, modelsContacted: md.modelsContacted, force: isForceExit.value }
-      if (md.activities?.length > 0) {
-        fetch(`${apiUrl}/marketing/reports/activities/batch`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ shiftId: currentShiftId.value, activities: md.activities }) }).catch(console.error)
-      }
-    } else {
-      payload = {
-        earnings: startEarnings.value, earningsMessages: startEarningsMessages.value,
-        earningsTips: startEarningsTips.value, earningsPosts: startEarningsPosts.value,
-        growthPercentage: startGrowthPercentage.value, observations: finalObs, force: isForceExit.value,
-        modelReports: perModelReports.value
-          .filter(r => r.handoffNotes || r.spenders.some(s => s.name || s.username || s.amount))
-          .map(r => ({
-            modelName: r.modelName,
-            soldContentJson: JSON.stringify(r.handoffNotes ? r.handoffNotes.split('\n').filter(Boolean) : []),
-            spendersJson: JSON.stringify(r.spenders.filter(s => s.name || s.username || s.amount))
-          }))
-      }
+
+    payload = {
+      earnings: startEarnings.value, earningsMessages: startEarningsMessages.value,
+      earningsTips: startEarningsTips.value, earningsPosts: startEarningsPosts.value,
+      growthPercentage: startGrowthPercentage.value, observations: finalObs, force: isForceExit.value,
+      modelReports: perModelReports.value
+        .filter(r => r.handoffNotes || r.spenders.some(s => s.name || s.username || s.amount))
+        .map(r => ({
+          modelName: r.modelName,
+          soldContentJson: JSON.stringify(r.handoffNotes ? r.handoffNotes.split('\n').filter(Boolean) : []),
+          spendersJson: JSON.stringify(r.spenders.filter(s => s.name || s.username || s.amount))
+        }))
     }
+
     const res = await fetch(`${apiUrl}/shifts/${currentShiftId.value}/end`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) })
     if (res.status === 412) { const e = await res.json(); toast.error(e.message || 'El turno está incompleto.'); showReportModal.value = false; return }
-    if (!res.ok) throw new Error('Server error on ending shift')
-
-    if (!isMarketing.value && assignedModels.value.length > 0) {
-      const batch = assignedModels.value.map(m => {
-        const report = perModelReports.value.find(r => r.modelId === m.id)
-        const msg = report?.handoffNotes || observations.value || ''
-        if (!msg && (!report || !report.spenders.some(s => s.name || s.username || s.amount))) return null
-        return { ofModelId: m.id, shiftId: currentShiftId.value, message: msg, soldContentJson: JSON.stringify(msg ? msg.split('\n').filter(Boolean) : []), spendersJson: JSON.stringify(report?.spenders.filter(s => s.name || s.username || s.amount) || []) }
-      }).filter(Boolean)
-      if (batch.length > 0) fetch(`${apiUrl}/admin/models/logbook/batch`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(batch) }).catch(console.error)
-    }
+    if (!res.ok) throw new Error('Server error')
 
     resetState()
     window.electronAPI?.shift?.stopped()
     showReportModal.value = false
-    startEarnings.value = 0; startEarningsMessages.value = 0; startEarningsTips.value = 0
-    startEarningsPosts.value = 0; startGrowthPercentage.value = 0; observations.value = ''
-    emergencyReason.value = ''; isForceExit.value = false; perModelReports.value = []
+
     if (startExtras) { toast.info('Turno cerrado. Iniciando extras...'); setTimeout(() => startShift(true), 1200) }
     else { toast.success('Turno finalizado correctamente.'); currentShiftId.value = null }
   } catch (e) { console.error(e); toast.error('Error al enviar el reporte.') }
 }
-
-function startShiftPrompt(isExtra: boolean) { isExtraHoursSelection.value = isExtra; showStartModal.value = true }
 
 async function toggleBreak() {
   if (!isWorking.value) return
@@ -278,6 +243,7 @@ async function toggleBreak() {
   }
 }
 
+// --- Services ---
 function startSync() {
   if (syncInterval) clearTimeout(syncInterval)
   const runner = async () => {
@@ -291,7 +257,7 @@ function startSync() {
         const activeApp = await window.electronAPI.screen.getActiveWindowName()
         await fetch(`${apiUrl}/shifts/${currentShiftId.value}/sync-app`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ activeApp, idleTimeSeconds: idleTime.value, activeTimeSeconds: workTime.value, breakTimeSeconds: breakTime.value, isAfk: isAfk.value }) })
       }
-    } catch (err) { console.error('Sync error:', err) }
+    } catch (err) { }
     finally { isSyncing = false; if (isWorking.value) syncInterval = setTimeout(runner, 5000) }
   }
   runner()
@@ -309,25 +275,10 @@ function startAutoScreenshot() {
           await fetch(`${apiUrl}/shifts/${currentShiftId.value}/upload-screenshot`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ image: JSON.stringify(screensRaw.map((s: any) => s.image)) }) })
         }
       }
-    } catch (err) { console.error('[Screenshot] error:', err) }
+    } catch (err) { }
     finally { isCapturing = false; if (isWorking.value && !isPaused.value) autoScreenshotInterval = setTimeout(runner, 6 * 60 * 1000) }
   }
   setTimeout(runner, 1000)
-}
-
-const playNotificationSound = () => {
-  try {
-    const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext
-    if (!Ctx) return
-    const ctx = new Ctx()
-    const ping = (t: number, f: number) => {
-      const o = ctx.createOscillator(); const g = ctx.createGain()
-      o.connect(g); g.connect(ctx.destination); o.type = 'sine'; o.frequency.setValueAtTime(f, t)
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.15, t + 0.01); g.gain.exponentialRampToValueAtTime(0.01, t + 0.3)
-      o.start(t); o.stop(t + 0.4)
-    }
-    ping(ctx.currentTime, 880); ping(ctx.currentTime + 0.15, 1046.50)
-  } catch { }
 }
 
 function startPolling() {
@@ -339,19 +290,29 @@ function startPolling() {
       const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })
       const data = await res.json()
       if (data?.pendingMessage) {
-        playNotificationSound()
         toast.info('Mensaje de Administración', { description: data.pendingMessage, duration: 10000 })
         window.electronAPI?.sendNotification?.({ title: 'Notificación', body: data.pendingMessage })
         fetch(`${apiUrl}/shifts/${currentShiftId.value}/clear-message`, { method: 'POST', headers: authHeaders() }).catch(console.error)
       }
-      if (data?.screenshotRequested && window.electronAPI?.screen) {
-        const screensRaw = await window.electronAPI.screen.takeScreenshot()
-        if (screensRaw?.length > 0) await fetch(`${apiUrl}/shifts/${currentShiftId.value}/upload-screenshot`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ image: JSON.stringify(screensRaw.map((s: any) => s.image)) }) })
-      }
-    } catch (err) { console.error('Polling error:', err) }
-    finally { isPolling = false; if (isWorking.value) pollingInterval = setTimeout(runner, 5000) }
+    } catch (err) { }
+    finally { isPolling = false; if (isWorking.value) pollingInterval = setTimeout(runner, 10000) }
   }
   runner()
+}
+
+// --- Handlers ---
+function initModelReports() {
+  selectedModelReportIdx.value = 0
+  perModelReports.value = assignedModels.value.map(m => ({
+    modelId: m.id, modelName: m.name, handoffNotes: '',
+    spenders: [{ name: '', username: '', amount: '' }]
+  }))
+}
+function addSpender(mIdx: number) {
+  perModelReports.value[mIdx].spenders.push({ name: '', username: '', amount: '' })
+}
+function removeSpender(mIdx: number, sIdx: number) {
+  perModelReports.value[mIdx].spenders.splice(sIdx, 1)
 }
 
 function resetState() {
@@ -360,46 +321,28 @@ function resetState() {
   workTime.value = 0; breakTime.value = 0; idleTime.value = 0; observations.value = ''
   clearAllTimers()
 }
-function clearAllTimers() {
-  if (timerInterval) { clearInterval(timerInterval); timerInterval = null }
-  if (breakInterval) { clearInterval(breakInterval); breakInterval = null }
-  if (pollingInterval) { clearTimeout(pollingInterval); pollingInterval = null }
-  if (syncInterval) { clearTimeout(syncInterval); syncInterval = null }
-  if (autoScreenshotInterval) { clearTimeout(autoScreenshotInterval); autoScreenshotInterval = null }
-}
-function logout() { auth.logout(); router.push({ name: 'login' }) }
 
-const navItems = computed(() => [
-  { id: 'tracker', label: 'Tracker', icon: Activity },
-  { id: 'context', label: 'Bitácora', icon: MessageSquare },
-  ...(isMarketing.value ? [
-    { id: 'crm', label: 'Marketing Hub', icon: Target },
-    { id: 'creative', label: 'Creatividad', icon: Layers },
-  ] : []),
-  { id: 'history', label: 'Mi Historial', icon: List },
-])
+function clearAllTimers() {
+  if (timerInterval) clearInterval(timerInterval)
+  if (breakInterval) clearInterval(breakInterval)
+  if (pollingInterval) clearTimeout(pollingInterval)
+  if (syncInterval) clearTimeout(syncInterval)
+  if (autoScreenshotInterval) clearTimeout(autoScreenshotInterval)
+}
+
+const handoffData = ref<Record<number, any[]>>({})
+async function loadHandoff() {
+  if (!assignedModels.value.length) return
+  try {
+    const ids = assignedModels.value.map(m => m.id).join(',')
+    const res = await fetch(`${apiUrl}/admin/models/handoff?modelIds=${ids}`, { headers: authHeaders() })
+    if (res.ok) handoffData.value = await res.json()
+  } catch { }
+}
 
 onMounted(async () => {
-  try {
-    const meRes = await fetch(`${apiUrl}/admin/users/me`, { headers: authHeaders() })
-    if (meRes.ok) {
-      const freshUser = await meRes.json()
-      if (auth.user) {
-        auth.user.shiftTargetSeconds = freshUser.shiftTargetSeconds
-        auth.user.breakTargetSeconds = freshUser.breakTargetSeconds
-        auth.user.profilePictureBase64 = freshUser.profilePictureBase64
-        localStorage.setItem('user', JSON.stringify(auth.user))
-      }
-    }
-  } catch { }
-
-  if (window.electronAPI?.updater) {
-    window.electronAPI.updater.onStatusChange((data: any) => {
-      if (data.type === 'available') toast.info('Nueva versión disponible', { description: `Se está descargando la versión ${data.info.version}.` })
-      else if (data.type === 'ready') toast.success('¡Actualización lista!', { description: 'Hacé clic para reiniciar y aplicar.', duration: 15000, action: { label: 'Reiniciar', onClick: () => window.electronAPI.updater.installNow() } })
-    })
-  }
-
+  fetchTemplates()
+  // Initial data load
   try {
     const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })
     if (res.status === 200) {
@@ -415,588 +358,274 @@ onMounted(async () => {
   } catch { }
 
   try {
-    const r = await fetch(`${apiUrl}/admin/users/schedule/user/${auth.user?.id}`, { headers: authHeaders() })
-    if (r.ok) {
-      const all = await r.json()
-      const assigned = all.map((s: any) => s.dayOfWeek)
-      const week = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
-      const map: Record<string, string> = { MONDAY: 'Lun', TUESDAY: 'Mar', WEDNESDAY: 'Mie', THURSDAY: 'Jue', FRIDAY: 'Vie', SATURDAY: 'Sab', SUNDAY: 'Dom' }
-      userOffDays.value = week.filter(d => !assigned.includes(d)).map(d => map[d]).join(', ') || 'Sin días libres'
-    }
-  } catch { }
-
-  try {
     const sRes = await fetch(`${apiUrl}/admin/users/schedule/current`, { headers: authHeaders() })
     if (sRes.ok) {
       userSchedule.value = await sRes.json()
       assignedModels.value = userSchedule.value.assignedModels || []
-      for (const m of assignedModels.value) {
-        const hRes = await fetch(`${apiUrl}/shifts/reports/model/${m.id}`, { headers: authHeaders() })
-        if (hRes.ok) modelsHistory.value[m.id] = await hRes.json()
-      }
       await loadHandoff()
     }
   } catch { }
 })
 
-onUnmounted(() => clearAllTimers())
+onUnmounted(() => {
+  clearAllTimers()
+})
 </script>
 
 <template>
   <TooltipProvider :delay-duration="300">
-    <div class="h-full flex bg-zinc-50 dark:bg-zinc-950 text-foreground overflow-hidden">
+    <div class="h-full flex bg-zinc-50 dark:bg-black text-foreground overflow-hidden font-sans select-none">
 
-      <!-- ══════════════════════════════════════════
-           SIDEBAR — desktop
-           ══════════════════════════════════════════ -->
-      <aside
-        class="hidden lg:flex flex-col h-full shrink-0 w-[64px] xl:w-[220px] bg-card border-r border-border overflow-hidden transition-all duration-300">
+      <!-- Modular Sidebar -->
+      <DashboardSidebar v-model:activeTab="activeTab" v-model:open="sidebarOpen" :is-marketing="isMarketing"
+        @logout="auth.logout(); router.push({ name: 'login' })" />
 
-        <!-- Brand -->
-        <div class="flex items-center gap-3 px-3 xl:px-4 h-[57px] border-b border-border">
-          <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <span class="text-primary-foreground text-[10px] font-black tracking-tighter">ES</span>
-          </div>
-          <div class="hidden xl:block min-w-0">
-            <p class="text-[13px] font-bold text-foreground leading-none truncate">Essenza</p>
-            <p class="text-[9px] text-muted-foreground leading-none mt-0.5 tracking-[0.15em] uppercase">Models Hub</p>
-          </div>
-        </div>
+      <main class="flex-1 flex flex-col min-w-0 relative overflow-hidden transition-colors duration-300 ">
 
-        <!-- Nav links -->
-        <nav class="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          <Tooltip v-for="item in navItems" :key="item.id">
-            <TooltipTrigger as-child>
-              <button @click="activeTab = item.id" :class="[
-                'w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left transition-all duration-150 group',
-                activeTab === item.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-              ]">
-                <component :is="item.icon" class="w-4 h-4 shrink-0" />
-                <span class="hidden xl:block text-[12px] font-semibold truncate">{{ item.label }}</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" class="xl:hidden text-xs">{{ item.label }}</TooltipContent>
-          </Tooltip>
-        </nav>
+        <!-- Modular Topbar -->
+        <Topbar :active-tab="activeTab" :is-working="isWorking" :is-paused="isPaused" :status-label="statusLabel"
+          :status-color="statusColor" :shift-target="missingShiftSeconds" @toggle-sidebar="sidebarOpen = !sidebarOpen"
+          @start-shift="isExtraHoursSelection = $event; showStartModal = true" @toggle-break="toggleBreak"
+          @end-shift="endShiftPrompt" />
 
-        <!-- User + logout -->
-        <div class="px-2 pb-3 pt-2 border-t border-border space-y-1.5">
-          <div class="hidden xl:flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-secondary border border-border">
-            <Avatar class="w-7 h-7 rounded-lg shrink-0 overflow-hidden">
-              <AvatarImage :src="auth.user?.profilePictureBase64" class="object-cover" />
-              <AvatarFallback class="bg-accent text-accent-foreground text-[10px] font-bold">
-                {{ auth.user?.name?.charAt(0) }}
-              </AvatarFallback>
-            </Avatar>
-            <div class="min-w-0 flex-1">
-              <p class="text-[11px] font-bold text-foreground leading-tight truncate">{{ auth.user?.name }}</p>
-              <p class="text-[9px] text-muted-foreground uppercase tracking-[0.15em] truncate leading-none mt-0.5">
-                {{ auth.user?.role?.replace('ROLE_', '') }}
-              </p>
-            </div>
-          </div>
-
-          <div class="xl:hidden flex justify-center py-1">
-            <Avatar class="w-7 h-7 rounded-lg overflow-hidden">
-              <AvatarImage :src="auth.user?.profilePictureBase64" class="object-cover" />
-              <AvatarFallback class="bg-accent text-accent-foreground text-[10px] font-bold">
-                {{ auth.user?.name?.charAt(0) }}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-
-          <button @click="logout"
-            class="w-full flex items-center justify-center xl:justify-start gap-2.5 px-2.5 py-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all text-[11px] font-medium">
-            <LogOut class="w-3.5 h-3.5 shrink-0" />
-            <span class="hidden xl:block">Cerrar sesión</span>
-          </button>
-        </div>
-      </aside>
-
-      <!-- SIDEBAR — mobile Sheet -->
-      <Sheet v-model:open="sidebarOpen">
-        <SheetContent side="left" class="w-64 p-0 bg-card border-r border-border">
-          <div class="flex items-center gap-3 px-5 h-[57px] border-b border-border">
-            <div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <span class="text-primary-foreground text-[10px] font-black">ES</span>
-            </div>
-            <span class="font-bold text-sm text-foreground">Essenza</span>
-          </div>
-          <nav class="p-2.5 space-y-0.5">
-            <button v-for="item in navItems" :key="item.id" @click="activeTab = item.id; sidebarOpen = false" :class="[
-              'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-[12px] font-semibold transition-all',
-              activeTab === item.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-            ]">
-              <component :is="item.icon" class="w-4 h-4" />{{ item.label }}
-            </button>
-          </nav>
-          <div class="absolute bottom-0 left-0 right-0 p-3 border-t border-border">
-            <button @click="logout"
-              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-destructive hover:bg-destructive/10 text-[12px] font-semibold transition-all">
-              <LogOut class="w-4 h-4" /> Cerrar sesión
-            </button>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      <!-- ══════════════════════════════════════════
-           MAIN CONTENT
-           ══════════════════════════════════════════ -->
-      <main class="flex-1 h-full flex flex-col min-w-0 overflow-hidden">
-
-        <!-- Top bar -->
-        <header class="shrink-0 h-[57px] border-b border-border bg-card flex items-center px-4 md:px-5 gap-3">
-          <Button @click="sidebarOpen = true" variant="ghost" size="icon" class="lg:hidden -ml-1 shrink-0">
-            <Menu class="w-4 h-4" />
-          </Button>
-
-          <div class="flex-1 min-w-0">
-            <h1 class="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none">
-              {{navItems.find(n => n.id === activeTab)?.label ?? 'Dashboard'}}
-            </h1>
-          </div>
-
-          <!-- Status indicators -->
-          <div class="flex items-center gap-2 shrink-0">
-            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-secondary">
-              <span
-                :class="['w-1.5 h-1.5 rounded-full transition-colors', statusDot, isWorking && !isPaused ? 'animate-pulse' : '']" />
-              <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{{ statusLabel
-              }}</span>
-            </div>
-            <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-secondary">
-              <Timer class="w-3 h-3 text-muted-foreground" />
-              <span class="text-[10px] font-semibold text-muted-foreground tabular-nums">{{ formatTime(SHIFT_TARGET)
-              }}</span>
-            </div>
-          </div>
-
-          <!-- Shift controls -->
-          <div class="flex items-center gap-2 shrink-0">
-            <template v-if="!isWorking">
-              <Button @click="startShiftPrompt(false)" size="sm"
-                class="h-8 text-[10px] font-bold uppercase tracking-wide px-3 gap-1.5">
-                <Play class="w-3 h-3" /> Iniciar
-              </Button>
-              <Button @click="startShiftPrompt(true)" size="sm" variant="outline"
-                class="h-8 text-[10px] font-bold uppercase tracking-wide px-3 gap-1.5 border-amber-500/40 text-amber-500 hover:bg-amber-500/10 hover:text-amber-500 dark:border-amber-500/30">
-                <Zap class="w-3 h-3" /> Extras
-              </Button>
-
-            </template>
-            <template v-else>
-              <Button @click="toggleBreak" size="sm" variant="outline"
-                class="h-8 text-[10px] font-bold uppercase tracking-wide px-3 gap-1.5">
-                <Coffee class="w-3 h-3" />{{ isPaused ? 'Retomar' : 'Break' }}
-              </Button>
-              <Button @click="endShiftPrompt" size="sm" variant="outline"
-                class="h-8 text-[10px] font-bold uppercase tracking-wide px-3 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive">
-                <X class="w-3 h-3" /> Detener
-              </Button>
-
-            </template>
-          </div>
-        </header>
-
-        <!-- Scrollable body -->
-        <ScrollArea class="flex-1 min-h-0 w-full">
-          <div class="p-4 md:p-6 max-w-6xl mx-auto space-y-5">
+        <ScrollArea class="flex-1 bg-zinc-100 dark:bg-zinc-800">
+          <div class="max-w-[1400px] mx-auto p-4 lg:p-8 space-y-8 relative z-10 transition-all">
 
             <AnnouncementsBanner />
 
-            <!-- ── Live stats (while working) ─────────────────────────── -->
-            <div v-if="isWorking" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <!-- Case: TRACKER -->
+            <template v-if="activeTab === 'tracker'">
+              <!-- Modular Stats Overview -->
+              <StatsCards :shift-compliance-percent="shiftCompliancePercent" :work-time="workTime" :idle-time="idleTime"
+                :break-time="breakTime" />
 
-              <div class="rounded-xl border border-border bg-card p-4 space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <span
-                    class="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Rendimiento</span>
-                  <TrendingUp class="w-3.5 h-3.5 text-emerald-500" />
-                </div>
-                <p class="text-3xl font-black tabular-nums text-foreground leading-none">
-                  {{ shiftCompliancePercent }}<span class="text-sm font-normal text-muted-foreground">%</span>
-                </p>
-                <Progress :model-value="shiftCompliancePercent" class="h-1" />
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Modular Tracker/Timer Card -->
+                <TrackerCard :effective-work-seconds="effectiveWorkSeconds" :is-working="isWorking"
+                  :is-paused="isPaused" :status-label="statusLabel" :status-dot="statusDot" @toggle-break="toggleBreak"
+                  @start-shift="isExtraHoursSelection = $event; showStartModal = true" @end-shift="endShiftPrompt" />
+
+                <!-- Modular Notes/Observations Card -->
+                <NotesCard v-model="observations" />
               </div>
 
-              <div class="rounded-xl border border-border bg-card p-4 space-y-2.5">
-                <span class="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground block">Tiempo
-                  activo</span>
-                <p class="text-3xl font-black tabular-nums text-primary leading-none font-mono">{{ formatTime(workTime)
-                }}</p>
-                <div class="flex items-center gap-1.5">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span class="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">En vivo</span>
-                </div>
-              </div>
-
-              <div class="rounded-xl border border-border bg-card p-4 space-y-2.5">
-                <span class="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-500 block">Deuda AFK</span>
-                <p class="text-3xl font-black tabular-nums text-amber-500 leading-none font-mono">{{
-                  formatTime(idleTime) }}</p>
-                <span class="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">A recuperar</span>
-              </div>
-
-              <div
-                :class="['rounded-xl border bg-card p-4 space-y-2.5', breakTime > 1800 ? 'border-destructive/40' : 'border-border']">
-                <div class="flex items-center justify-between">
-                  <span
-                    :class="['text-[9px] font-bold uppercase tracking-[0.18em]', breakTime > 1800 ? 'text-destructive' : 'text-muted-foreground']">Break</span>
-                  <span v-if="breakTime > 1800"
-                    class="text-[8px] font-bold uppercase text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-md animate-pulse">Límite</span>
-                </div>
-                <p
-                  :class="['text-3xl font-black tabular-nums leading-none font-mono', breakTime > 1800 ? 'text-destructive' : 'text-foreground']">
-                  {{ formatTime(breakTime) }}
-                </p>
-                <span class="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Máx 30:00</span>
-              </div>
-            </div>
-
-            <!-- ═══ TAB: TRACKER ═══ -->
-            <div v-if="activeTab === 'tracker'" class="space-y-5">
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-                <!-- Hero timer -->
-                <div
-                  class="lg:col-span-2 rounded-2xl border border-border bg-card flex flex-col items-center justify-center text-center min-h-[300px] p-8 relative overflow-hidden">
-                  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div class="w-[500px] h-[500px] rounded-full border-[60px] border-foreground opacity-[0.06]" />
-                    <div v-if="isWorking"
-                      class="absolute w-[500px] h-[500px] rounded-full border-[60px] border-foreground animate-ping"
-                      style="opacity: 0;" />
-                  </div>
-
-                  <p class="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.3em] mb-5 relative z-10">
-                    Tiempo
-                    Neto Efectivo</p>
-
-                  <p
-                    class="text-6xl md:text-7xl font-black tabular-nums tracking-tighter leading-none text-foreground font-mono relative z-10">
-                    {{ formatTime(effectiveWorkSeconds) }}
-                  </p>
-
-                  <div class="flex items-center gap-2 mt-4 relative z-10">
-                    <div class="relative flex items-center justify-center">
-                      <span :class="['w-2 h-2 rounded-full', statusDot, isWorking ? 'animate-pulse' : '']" />
-                      <span v-if="isWorking"
-                        :class="['absolute w-2 h-2 rounded-full', statusDot, 'animate-ping opacity-75']" />
-                    </div>
-                    <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.2em]">{{ statusLabel
-                    }}</p>
-                  </div>
-
-                  <Button v-if="isWorking" @click="toggleBreak" variant="outline"
-                    class="mt-8 h-10 px-6 text-[10px] font-bold uppercase tracking-wider rounded-full gap-2 relative z-10">
-                    <Coffee class="w-3.5 h-3.5" />
-                    {{ isPaused ? 'Retomar trabajo' : 'Tomar break' }}
-                  </Button>
-
-                  <div v-if="!isWorking" class="mt-7 space-y-3 relative z-10">
-                    <p class="text-[11px] text-muted-foreground">No hay turno activo</p>
-                    <Button @click="startShiftPrompt(false)"
-                      class="h-10 px-8 text-[10px] font-bold uppercase tracking-wider rounded-full gap-2">
-                      <Play class="w-3.5 h-3.5" /> Iniciar jornada
-                    </Button>
-                  </div>
-                </div>
-
-                <!-- Handoff quick-view -->
-                <div class="rounded-2xl border border-border bg-card flex flex-col">
-                  <div class="px-5 pt-5 pb-3 border-b border-border flex items-center gap-2">
-                    <MessageSquare class="w-3.5 h-3.5 text-muted-foreground" />
-                    <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Turno anterior</p>
-                  </div>
-                  <div class="flex-1 px-5 py-4 space-y-3">
-                    <template v-if="assignedModels.length > 0">
-                      <div v-for="m in assignedModels.slice(0, 2)" :key="m.id"
-                        class="p-3 rounded-xl bg-secondary border border-border">
-                        <p class="text-[10px] font-bold uppercase tracking-wide text-foreground mb-1.5">{{ m.name }}</p>
-                        <p v-if="handoffData[m.id]?.length > 0"
-                          class="text-[11px] text-muted-foreground italic line-clamp-3 leading-relaxed">
-                          "{{ handoffData[m.id][0].message }}"
-                        </p>
-                        <p v-else class="text-[10px] text-muted-foreground/50 italic">Sin notas recientes</p>
-                      </div>
-
-                    </template>
-                    <div v-else class="flex flex-col items-center justify-center py-6 gap-2 text-center">
-                      <Users class="w-8 h-8 text-muted-foreground/30" />
-                      <p class="text-[10px] text-muted-foreground/50">Sin modelos asignadas</p>
+              <!-- Info Cards section - Moved Below -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-6">
+                  <p class="text-[10px] font-black text-zinc-400 dark:text-zinc-600 uppercase tracking-widest mb-4">
+                    Meta Asignada</p>
+                  <div class="flex items-center justify-between">
+                    <p class="text-2xl font-black text-zinc-900 dark:text-white tabular-nums">{{
+                      formatTime(SHIFT_TARGET) }}</p>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                      <CheckCircle2 class="w-5 h-5 text-emerald-500" />
                     </div>
                   </div>
-                  <div class="px-5 pb-5">
-                    <button @click="activeTab = 'context'"
-                      class="text-[10px] font-semibold text-primary hover:opacity-80 transition-opacity flex items-center gap-1 uppercase tracking-wider">
-                      Ver bitácoras
-                      <ChevronRight class="w-3 h-3" />
-                    </button>
+                </div>
+
+                <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-6">
+                  <p class="text-[10px] font-black text-zinc-400 dark:text-zinc-600 uppercase tracking-widest mb-4">
+                    Modelos de Hoy</p>
+                  <div class="flex flex-wrap gap-2">
+                    <div v-for="m in assignedModels" :key="m.id"
+                      class="px-3 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700">
+                      <span class="text-xs font-bold text-zinc-700 dark:text-zinc-300">{{ m.name }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <MarketingPanel v-if="isMarketing && isWorking" ref="marketingPanelRef" :shiftId="currentShiftId" />
-            </div>
+              <MarketingPanel v-if="isMarketing" ref="marketingPanelRef" />
+            </template>
 
-            <!-- ═══ TAB: CRM ═══ -->
-            <div v-if="activeTab === 'crm'">
-              <LeadsKanban />
-            </div>
-
-            <!-- ═══ TAB: CREATIVE ═══ -->
-            <div v-if="activeTab === 'creative'">
-              <CreativityWall />
-            </div>
-
-            <!-- ═══ TAB: HISTORY ═══ -->
-            <div v-if="activeTab === 'history'">
-              <UserShiftHistory />
-            </div>
-
-            <!-- ═══ TAB: BITÁCORA ═══ -->
-            <div v-if="activeTab === 'context'" class="space-y-5">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h2 class="text-base font-bold text-foreground">Contexto de Modelos</h2>
-                  <p class="text-[10px] text-muted-foreground uppercase tracking-[0.18em] mt-0.5">Notas del último turno
-                  </p>
-                </div>
-                <Button @click="loadHandoff" variant="outline" size="sm"
-                  class="h-9 gap-2 text-[10px] font-bold uppercase tracking-wider">
-                  <Clock class="w-3.5 h-3.5" /> Actualizar
-                </Button>
-              </div>
-
-              <div v-if="assignedModels.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ModelHandoffCard v-for="m in assignedModels" :key="m.id" :model="m"
+            <!-- Case: CONTEXT / BITACORA -->
+            <template v-else-if="activeTab === 'context'">
+              <div v-if="assignedModels.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ModelHandoffCard v-for="m in assignedModels" :key="m.id" :model="{ name: m.name }"
                   :entries="handoffData[m.id] || []" />
               </div>
+            </template>
 
-              <div v-else class="flex flex-col items-center justify-center py-28 text-center gap-3">
-                <div class="w-14 h-14 rounded-2xl bg-secondary border border-border flex items-center justify-center">
-                  <Users class="w-6 h-6 text-muted-foreground/30" />
-                </div>
-                <p class="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Sin modelos asignadas
-                </p>
-                <p class="text-[10px] text-muted-foreground/50">Las modelos se asignan desde el panel de administración.
-                </p>
-              </div>
-            </div>
+            <!-- Case: CRM / MARKETING -->
+            <template v-else-if="activeTab === 'crm'">
+              <LeadsKanban />
+            </template>
+
+            <!-- Case: CREATIVIDAD -->
+            <template v-else-if="activeTab === 'creative'">
+              <CreativityWall />
+            </template>
+
+            <!-- Case: HISTORY -->
+            <template v-else-if="activeTab === 'history'">
+              <UserShiftHistory />
+            </template>
 
           </div>
         </ScrollArea>
       </main>
-    </div>
 
-    <!-- ══════════════════════════════════════════
-         MODAL: INICIAR TURNO
-         ══════════════════════════════════════════ -->
-    <Dialog v-model:open="showStartModal">
-      <DialogContent class="sm:max-w-sm rounded-2xl p-0 overflow-hidden bg-card border-border">
-        <div :class="['h-1 w-full rounded-t-2xl', isExtraHoursSelection ? 'bg-amber-500' : 'bg-primary']" />
-        <div class="p-6">
-          <DialogHeader class="items-center text-center pb-4">
-            <div
-              :class="['w-11 h-11 rounded-xl flex items-center justify-center mb-3 border', isExtraHoursSelection ? 'bg-amber-500/10 border-amber-500/30' : 'bg-primary/10 border-primary/30']">
-              <Zap v-if="isExtraHoursSelection" class="w-5 h-5 text-amber-500" />
-              <Play v-else class="w-5 h-5 text-primary" />
-            </div>
-            <DialogTitle class="text-base font-bold text-foreground">
-              {{ isExtraHoursSelection ? 'Horas Extras' : 'Nueva Jornada' }}
-            </DialogTitle>
-            <DialogDescription class="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mt-1">
-              Configurá tu sesión
+      <!-- ── Modals ── -->
+      <!-- Start Shift -->
+      <Dialog v-model:open="showStartModal">
+        <DialogContent
+          class="sm:max-w-md rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
+          <DialogHeader>
+            <DialogTitle class="text-lg font-black uppercase tracking-tight">Preparar Turno</DialogTitle>
+            <DialogDescription class="text-xs text-zinc-500 uppercase tracking-widest leading-none mt-1">
+              {{ isExtraHoursSelection ? 'Iniciando Horas Extras' : 'Iniciando Jornada Regular' }}
             </DialogDescription>
           </DialogHeader>
-
-          <div class="space-y-3">
-            <div v-if="!isExtraHoursSelection && isMarketing"
-              class="py-3 px-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-center">
-              <p class="text-[9px] font-bold uppercase tracking-widest text-emerald-500">Sesión de Captación & Marca</p>
-              <p class="text-[10px] text-muted-foreground mt-0.5">El progreso se mide por leads y contenido.</p>
+          <div class="py-6 space-y-6">
+            <div class="space-y-4">
+              <div>
+                <label class="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 block">Facturación
+                  Inicial
+                  ($)</label>
+                <Input type="number" v-model="startEarnings" placeholder="0.00" class="h-12 text-lg font-bold" />
+              </div>
             </div>
-            <div v-if="isExtraHoursSelection"
-              class="py-3 px-4 bg-amber-500/10 rounded-xl border border-amber-500/20 text-center">
-              <p class="text-[9px] font-bold uppercase tracking-widest text-amber-500">Sin meta horaria fija</p>
-              <p class="text-[10px] text-muted-foreground mt-0.5">El cronómetro correrá sin límite de jornada.</p>
-            </div>
-
-            <div class="flex flex-col gap-2 pt-2">
-              <Button v-if="!isExtraHoursSelection" @click="startShift(false)"
-                class="w-full h-11 text-[11px] font-bold uppercase tracking-wider">
-                Iniciar jornada regular
-              </Button>
-              <Button v-if="!isExtraHoursSelection" @click="isExtraHoursSelection = true" variant="ghost"
-                class="w-full h-9 text-[10px] text-muted-foreground hover:text-amber-500 transition-colors">
-                ¿Son horas extras?
-              </Button>
-              <Button v-if="isExtraHoursSelection" @click="startShift(true)"
-                class="w-full h-11 text-[11px] font-bold uppercase tracking-wider bg-amber-500 hover:bg-amber-400 text-white border-0">
-                Iniciar horas extras
-              </Button>
-              <Button v-if="isExtraHoursSelection" @click="isExtraHoursSelection = false" variant="ghost"
-                class="w-full h-9 text-[10px] text-muted-foreground">
-                Volver a jornada regular
-              </Button>
-              <Button @click="showStartModal = false" variant="link"
-                class="text-[10px] text-muted-foreground/60 hover:text-muted-foreground mt-1">
-                Cancelar
-              </Button>
+            <div class="grid grid-cols-2 gap-3">
+              <Button @click="startShift(isExtraHoursSelection)"
+                class="h-12 rounded-xl font-bold uppercase tracking-wider text-xs">Confirmar</Button>
+              <Button @click="showStartModal = false" variant="outline"
+                class="h-12 rounded-xl font-bold uppercase tracking-wider text-xs">Cerrar</Button>
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
 
-    <!-- ══════════════════════════════════════════
-         MODAL: CERRAR TURNO
-         ══════════════════════════════════════════ -->
-    <Dialog v-model:open="showReportModal" :modal="true">
-      <DialogContent class="sm:max-w-lg rounded-2xl p-0 overflow-hidden bg-card border-border" :close-button="false">
-        <div :class="['h-1 w-full rounded-t-2xl', isForceExit ? 'bg-destructive' : 'bg-emerald-500']" />
-        <div class="p-6">
-          <DialogHeader class="items-center text-center pb-4">
-            <div
-              :class="['w-11 h-11 rounded-xl flex items-center justify-center mb-3 border', isForceExit ? 'bg-destructive/10 border-destructive/30' : 'bg-emerald-500/10 border-emerald-500/30']">
-              <AlertTriangle v-if="isForceExit" class="w-5 h-5 text-destructive" />
-              <CheckCircle2 v-else class="w-5 h-5 text-emerald-500" />
-            </div>
-            <DialogTitle :class="['text-base font-bold', isForceExit ? 'text-destructive' : 'text-foreground']">
-              {{ isForceExit ? 'Abandono de jornada' : 'Cerrar turno' }}
-            </DialogTitle>
-            <DialogDescription class="text-[10px] text-muted-foreground text-center mt-1 leading-relaxed">
-              {{ isForceExit ? 'Justificá por qué cerrás antes de cumplir la meta horaria.' : 'Completá el ' }}
-            </DialogDescription>
-          </DialogHeader>
+      <!-- End Shift / Report -->
+      <Dialog v-model:open="showReportModal">
+        <DialogContent
+          class="sm:max-w-2xl h-[90vh] rounded-3xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden flex flex-col">
+          <div :class="['h-1.5 w-full', isForceExit ? 'bg-red-500' : 'bg-emerald-500']" />
 
-          <div class="overflow-y-auto max-h-[65vh] space-y-4 pr-0.5">
+          <ScrollArea class="flex-1 px-8 py-8">
+            <DialogHeader class="mb-8">
+              <DialogTitle class="text-2xl font-black uppercase tracking-tight">Reporte de Turno</DialogTitle>
+              <DialogDescription class="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">Completa los
+                datos
+                para finalizar</DialogDescription>
+            </DialogHeader>
 
-            <!-- Force exit reason -->
-            <div v-if="isForceExit" class="space-y-1.5 p-3 bg-destructive/5 rounded-xl border border-destructive/20">
-              <label class="text-[9px] font-bold uppercase tracking-widest text-destructive block">
-                Razón de abandono <span class="opacity-60">(obligatorio)</span>
-              </label>
-              <Textarea v-model="emergencyReason" placeholder="Ej: Problema de conexión, emergencia, etc."
-                class="h-20 resize-none text-sm" />
-            </div>
+            <div class="space-y-8">
+              <div v-if="isForceExit" class="p-4 rounded-2xl bg-red-500/10 border border-red-500/20">
+                <p class="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <AlertTriangle class="w-3 h-3" /> Cierre Anticipado
+                </p>
+                <Textarea v-model="emergencyReason" placeholder="Razón del cierre anticipado..."
+                  class="bg-white dark:bg-zinc-900 border-red-500/30" />
+              </div>
 
-            <!-- Earnings -->
-            <template v-if="!isMarketing">
-              <div class="space-y-1.5">
+              <div class="space-y-4">
                 <label
-                  class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground block text-center">Facturación
-                  Neta Total ($)</label>
-                <Input type="number" v-model="startEarnings" placeholder="0.00"
-                  class="h-14 font-black text-2xl text-center" />
-                <p class="text-[10px] text-muted-foreground text-center">Ingresá el monto total generado durante este
-                  turno.</p>
-              </div>
-              <div class="space-y-1.5">
-                <label class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground block">Observaciones
-                  generales</label>
-                <Textarea v-model="observations" placeholder="Novedades, logros, inconvenientes del turno..."
-                  class="h-16 resize-none text-sm" />
+                  class="text-[10px] font-black text-zinc-400 uppercase tracking-widest block text-center">Facturación
+                  Neta Alcanzada ($)</label>
+                <Input type="number" v-model="startEarnings"
+                  class="h-16 text-4xl font-black text-center text-emerald-500" />
               </div>
 
-            </template>
+              <Separator />
 
-            <div v-else class="py-3 px-4 bg-secondary rounded-xl border border-border text-center">
-              <p class="text-[11px] text-muted-foreground">Las métricas de marketing se adjuntan automáticamente.</p>
-            </div>
-
-            <!-- Per-model -->
-            <template v-if="!isMarketing && perModelReports.length > 0">
-              <div class="space-y-3 pt-1">
-                <div class="flex items-center justify-between">
-                  <p
-                    class="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                    <Users class="w-3 h-3" /> Informe por Modelo
-                  </p>
-                  <span class="text-[8px] text-muted-foreground/50 uppercase tracking-widest">Opcional</span>
-                </div>
-
-                <div class="flex flex-wrap gap-1.5">
+              <div v-if="perModelReports.length > 0" class="space-y-4">
+                <p class="text-xs font-black uppercase tracking-widest text-zinc-400">Informe por Modelo</p>
+                <div class="flex flex-wrap gap-2">
                   <button v-for="(mr, idx) in perModelReports" :key="mr.modelId" @click="selectedModelReportIdx = idx"
-                    type="button" :class="[
-                      'px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all border flex items-center gap-1.5',
-                      selectedModelReportIdx === idx
-                        ? 'bg-primary border-primary text-primary-foreground'
-                        : 'bg-secondary border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                    ]">
+                    :class="['px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border',
+                      selectedModelReportIdx === idx ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950' : 'bg-transparent text-zinc-400 border-zinc-200 dark:border-zinc-800']">
                     {{ mr.modelName }}
-                    <div v-if="mr.handoffNotes || mr.spenders.some(s => s.name || s.username || s.amount)"
-                      class="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   </button>
                 </div>
 
-                <div v-if="perModelReports[selectedModelReportIdx]"
-                  class="rounded-xl border border-border bg-secondary p-4 space-y-3">
-                  <div class="flex items-center gap-2.5">
-                    <div
-                      class="w-8 h-8 rounded-lg bg-accent border border-border text-accent-foreground text-[11px] font-bold flex items-center justify-center">
-                      {{ perModelReports[selectedModelReportIdx].modelName.charAt(0) }}
-                    </div>
-                    <div>
-                      <p class="text-[11px] font-bold text-foreground leading-none">{{
-                        perModelReports[selectedModelReportIdx].modelName }}</p>
-                      <p class="text-[9px] text-muted-foreground mt-0.5">Informe de ventas</p>
-                    </div>
-                  </div>
+                <div
+                  class="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-4">
+                  <Textarea v-model="perModelReports[selectedModelReportIdx].handoffNotes"
+                    placeholder="Notas de relevo para la siguiente persona..." class="h-32" />
 
-                  <div class="space-y-1.5">
-                    <label class="text-[8px] font-bold uppercase tracking-widest text-muted-foreground block">Notas de
-                      Handoff</label>
-                    <Textarea v-model="perModelReports[selectedModelReportIdx].handoffNotes"
-                      placeholder="Notas para el siguiente chatter..." class="h-20 resize-none text-sm italic" />
-                    <p class="text-[8px] text-muted-foreground/50 uppercase tracking-widest">* Lo primero que verá el
-                      siguiente chatter</p>
-                  </div>
-
-                  <div class="space-y-2">
-                    <label
-                      class="text-[8px] font-bold uppercase tracking-widest text-muted-foreground block">Compradores
-                      principales</label>
-                    <div class="space-y-1.5">
-                      <div v-for="(sp, sIdx) in perModelReports[selectedModelReportIdx].spenders" :key="sIdx"
-                        class="flex gap-1.5 items-center">
-                        <Input v-model="sp.name" placeholder="Nombre" class="h-8 text-[11px] flex-1" />
-                        <Input v-model="sp.username" placeholder="@usuario" class="h-8 text-[11px] w-28" />
-                        <Input v-model="sp.amount" placeholder="$" class="h-8 text-[11px] w-16" />
-                        <button v-if="perModelReports[selectedModelReportIdx].spenders.length > 1" type="button"
-                          @click="removeSpender(selectedModelReportIdx, sIdx)"
-                          class="text-muted-foreground/40 hover:text-destructive transition-colors shrink-0">
-                          <X class="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                  <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                      <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Spenders Principales</p>
+                      <Button @click="addSpender(selectedModelReportIdx)" variant="ghost" size="sm"
+                        class="h-6 text-[9px]">
+                        <Plus class="w-3 h-3 mr-1" /> Añadir
+                      </Button>
                     </div>
-                    <button type="button" @click="addSpender(selectedModelReportIdx)"
-                      class="text-[9px] font-semibold uppercase tracking-wider text-primary hover:opacity-80 transition-opacity flex items-center gap-1.5 mt-1 px-2 py-1 border border-border rounded-lg">
-                      <Plus class="w-3 h-3" /> Agregar comprador
-                    </button>
+                    <div v-for="(sp, sIdx) in perModelReports[selectedModelReportIdx].spenders" :key="sIdx"
+                      class="flex gap-2">
+                      <Input v-model="sp.name" placeholder="Nombre" class="h-8 text-[11px]" />
+                      <Input v-model="sp.username" placeholder="@user" class="h-8 text-[11px]" />
+                      <Input v-model="sp.amount" placeholder="$" class="h-8 text-[11px] w-20" />
+                      <Button v-if="perModelReports[selectedModelReportIdx].spenders.length > 1"
+                        @click="removeSpender(selectedModelReportIdx, sIdx)" variant="ghost" size="icon"
+                        class="h-8 w-8">
+                        <X class="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
 
-            </template>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <label class="text-[10px] font-black text-zinc-400 uppercase tracking-widest block">Observaciones Generales</label>
+                  <span v-if="shiftTemplates.length" class="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Plantillas Rápidas</span>
+                </div>
 
-            <div class="flex flex-col gap-2 pt-1">
-              <Button @click="submitEndShift(false)" :disabled="isForceExit && emergencyReason.length < 10"
-                :variant="isForceExit ? 'destructive' : 'default'"
-                class="w-full h-11 text-[10px] font-bold uppercase tracking-wider">
-                {{ isForceExit ? 'Confirmar abandono y cerrar' : 'Finalizar turno' }}
-              </Button>
-              <Button v-if="!isExtraHours" @click="submitEndShift(true)" variant="outline"
-                class="w-full h-10 text-[10px] font-bold uppercase tracking-wider">
-                Finalizar y empezar extras
-              </Button>
+                <!-- Template Shortcuts -->
+                <div v-if="shiftTemplates.length" class="flex flex-wrap gap-1.5 p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800">
+                  <button v-for="t in shiftTemplates" :key="t.id" 
+                    @click="observations = observations ? observations + '\n' + t.content : t.content"
+                    class="px-2 py-1 rounded-md bg-white dark:bg-zinc-800 text-[10px] font-bold text-zinc-600 dark:text-zinc-400 border border-border hover:border-primary/50 transition-all">
+                    {{ t.name }}
+                  </button>
+                </div>
+
+                <Textarea v-model="observations" placeholder="Escribe aquí las novedades más importantes..."
+                  class="h-24" />
+              </div>
             </div>
+          </ScrollArea>
 
+          <div
+            class="p-8 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 grid grid-cols-2 gap-4">
+            <Button @click="submitEndShift(false)" :variant="isForceExit ? 'destructive' : 'default'"
+              class="h-12 font-black uppercase tracking-widest text-xs">
+              {{ isForceExit ? 'Cerrar con alerta' : 'Finalizar Turno' }}
+            </Button>
+            <Button v-if="!isExtraHours" @click="submitEndShift(true)" variant="secondary"
+              class="h-12 font-black uppercase tracking-widest text-xs">
+              Cerrar e Iniciar Extras
+            </Button>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
 
+    </div>
   </TooltipProvider>
 </template>
+
+<style scoped>
+.font-sans {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Custom Scrollbar for a premium look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(155, 155, 155, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(155, 155, 155, 0.2);
+}
+</style>
