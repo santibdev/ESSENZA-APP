@@ -468,20 +468,18 @@ onUnmounted(() => {
       <!-- ── Modals ── -->
       <!-- Start Shift -->
       <Dialog v-model:open="showStartModal">
-        <DialogContent
-          class="sm:max-w-md rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800">
+        <DialogContent class="sm:max-w-md">
           <DialogHeader>
             <DialogTitle class="text-lg font-black uppercase tracking-tight">Preparar Turno</DialogTitle>
-            <DialogDescription class="text-xs text-zinc-500 uppercase tracking-widest leading-none mt-1">
+            <DialogDescription class="text-xs text-muted-foreground uppercase tracking-widest leading-none mt-1">
               {{ isExtraHoursSelection ? 'Iniciando Horas Extras' : 'Iniciando Jornada Regular' }}
             </DialogDescription>
           </DialogHeader>
           <div class="py-6 space-y-6">
             <div class="space-y-4">
               <div>
-                <label class="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 block">Facturación
-                  Inicial
-                  ($)</label>
+                <label class="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2 block">Facturación
+                  Inicial ($)</label>
                 <Input type="number" v-model="startEarnings" placeholder="0.00" class="h-12 text-lg font-bold" />
               </div>
             </div>
@@ -498,15 +496,14 @@ onUnmounted(() => {
       <!-- End Shift / Report -->
       <Dialog v-model:open="showReportModal">
         <DialogContent
-          class="sm:max-w-2xl h-[90vh] rounded-3xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden flex flex-col">
+          class="sm:max-w-2xl h-[90vh] p-0 overflow-hidden flex flex-col">
           <div :class="['h-1.5 w-full', isForceExit ? 'bg-red-500' : 'bg-emerald-500']" />
 
           <ScrollArea class="flex-1 px-8 py-8">
             <DialogHeader class="mb-8">
               <DialogTitle class="text-2xl font-black uppercase tracking-tight">Reporte de Turno</DialogTitle>
-              <DialogDescription class="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">Completa los
-                datos
-                para finalizar</DialogDescription>
+              <DialogDescription class="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Completa los
+                datos para finalizar</DialogDescription>
             </DialogHeader>
 
             <div class="space-y-8">
@@ -515,12 +512,12 @@ onUnmounted(() => {
                   <AlertTriangle class="w-3 h-3" /> Cierre Anticipado
                 </p>
                 <Textarea v-model="emergencyReason" placeholder="Razón del cierre anticipado..."
-                  class="bg-white dark:bg-zinc-900 border-red-500/30" />
+                  class="border-red-500/30" />
               </div>
 
               <div class="space-y-4">
                 <label
-                  class="text-[10px] font-black text-zinc-400 uppercase tracking-widest block text-center">Facturación
+                  class="text-[10px] font-black text-muted-foreground uppercase tracking-widest block text-center">Facturación
                   Neta Alcanzada ($)</label>
                 <Input type="number" v-model="startEarnings"
                   class="h-16 text-4xl font-black text-center text-emerald-500" />
@@ -529,23 +526,22 @@ onUnmounted(() => {
               <Separator />
 
               <div v-if="perModelReports.length > 0" class="space-y-4">
-                <p class="text-xs font-black uppercase tracking-widest text-zinc-400">Informe por Modelo</p>
+                <p class="text-xs font-black uppercase tracking-widest text-muted-foreground">Informe por Modelo</p>
                 <div class="flex flex-wrap gap-2">
                   <button v-for="(mr, idx) in perModelReports" :key="mr.modelId" @click="selectedModelReportIdx = idx"
                     :class="['px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border',
-                      selectedModelReportIdx === idx ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950' : 'bg-transparent text-zinc-400 border-zinc-200 dark:border-zinc-800']">
+                      selectedModelReportIdx === idx ? 'bg-primary text-primary-foreground border-primary' : 'bg-transparent text-muted-foreground border-border hover:border-primary/50']">
                     {{ mr.modelName }}
                   </button>
                 </div>
 
-                <div
-                  class="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-4">
+                <div class="p-6 rounded-2xl bg-muted/50 border border-border space-y-4">
                   <Textarea v-model="perModelReports[selectedModelReportIdx].handoffNotes"
                     placeholder="Notas de relevo para la siguiente persona..." class="h-32" />
 
                   <div class="space-y-3">
                     <div class="flex items-center justify-between">
-                      <p class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Spenders Principales</p>
+                      <p class="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Spenders Principales</p>
                       <Button @click="addSpender(selectedModelReportIdx)" variant="ghost" size="sm"
                         class="h-6 text-[9px]">
                         <Plus class="w-3 h-3 mr-1" /> Añadir
@@ -568,15 +564,14 @@ onUnmounted(() => {
 
               <div class="space-y-4">
                 <div class="flex items-center justify-between">
-                  <label class="text-[10px] font-black text-zinc-400 uppercase tracking-widest block">Observaciones Generales</label>
-                  <span v-if="shiftTemplates.length" class="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Plantillas Rápidas</span>
+                  <label class="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Observaciones Generales</label>
+                  <span v-if="shiftTemplates.length" class="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Plantillas Rápidas</span>
                 </div>
 
-                <!-- Template Shortcuts -->
-                <div v-if="shiftTemplates.length" class="flex flex-wrap gap-1.5 p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800">
-                  <button v-for="t in shiftTemplates" :key="t.id" 
+                <div v-if="shiftTemplates.length" class="flex flex-wrap gap-1.5 p-2 rounded-xl bg-muted/50 border border-border">
+                  <button v-for="t in shiftTemplates" :key="t.id"
                     @click="observations = observations ? observations + '\n' + t.content : t.content"
-                    class="px-2 py-1 rounded-md bg-white dark:bg-zinc-800 text-[10px] font-bold text-zinc-600 dark:text-zinc-400 border border-border hover:border-primary/50 transition-all">
+                    class="px-2 py-1 rounded-md bg-background text-[10px] font-bold text-muted-foreground border border-border hover:border-primary/50 transition-all">
                     {{ t.name }}
                   </button>
                 </div>
@@ -587,8 +582,7 @@ onUnmounted(() => {
             </div>
           </ScrollArea>
 
-          <div
-            class="p-8 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 grid grid-cols-2 gap-4">
+          <div class="p-8 bg-muted/30 border-t border-border grid grid-cols-2 gap-4">
             <Button @click="submitEndShift(false)" :variant="isForceExit ? 'destructive' : 'default'"
               class="h-12 font-black uppercase tracking-widest text-xs">
               {{ isForceExit ? 'Cerrar con alerta' : 'Finalizar Turno' }}

@@ -61,9 +61,9 @@ async function handleLogin() {
         <!-- Card header -->
         <div class="px-8 pt-8 pb-6 border-b border-border">
           <div class="flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl bg-primary flex items-center justify-center
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center
                         flex-shrink-0 shadow-md shadow-primary/30 overflow-hidden p-1">
-              <img :src="currentLogo" alt="Logo" class="w-full h-full object-contain" />
+              <img src="../assets/img/isologo.png" alt="Logo" class="w-full h-full object-contain" />
             </div>
             <div>
               <h1 class="text-[15px] font-bold text-foreground leading-tight tracking-tight">
