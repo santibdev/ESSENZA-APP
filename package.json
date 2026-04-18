@@ -10,7 +10,7 @@
     "build": "vite build",
     "electron": "electron .",
     "preview": "vite preview",
-    "dist": "vite build && electron-builder"
+    "dist": "vite build && electron-builder --publish always"
   },
   "dependencies": {
     "active-win": "^8.2.1",
@@ -69,6 +69,7 @@
     },
     "mac": {
       "category": "public.app-category.business",
+      "artifactName": "${productName}_Setup_${version}.${ext}",
       "target": [
         "dmg"
       ],
