@@ -47,15 +47,43 @@ export const useAuthStore = defineStore('auth', () => {
         username: data.username,
         role: data.role,
         token: data.token,
-        shiftTargetSeconds: data.shiftTargetSeconds,
-        breakTargetSeconds: data.breakTargetSeconds
+        mustChangePassword: data.mustChangePassword
       }
+      
+      if (data.mustChangePassword) {
+        return { success: true, mustChangePassword: true, tempUser: userData }
+      }
+
       user.value = userData
       localStorage.setItem('user', JSON.stringify(userData))
-      return { success: true }
+      return { success: true, mustChangePassword: false }
     } catch (err) {
       error.value = err.message
       return { success: false, error: err.message }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function changePassword(userId, token, newPassword) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://essenza-core-production.up.railway.app/api/v1'
+      const res = await fetch(`${apiUrl}/admin/users/me/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ newPassword })
+      })
+
+      if (!res.ok) throw new Error('Error al actualizar contraseña')
+      return { success: true }
+    } catch (err) {
+      error.value = err.message
+      return { success: false }
     } finally {
       isLoading.value = false
     }
@@ -71,5 +99,5 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
   }
 
-  return { user, isAuthenticated, isLoading, error, login, logout, clearError }
+  return { user, isAuthenticated, isLoading, error, login, logout, clearError, changePassword }
 })

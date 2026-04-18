@@ -35,7 +35,7 @@ const sections = [
     items: [
       { id: 'crm' as TabType, label: 'Gestión de Leads', icon: Users, color: 'text-violet-500 dark:text-violet-400', bg: 'bg-violet-500/10 dark:bg-violet-500/15', badge: null, show: props.isMarketing },
       { id: 'creative' as TabType, label: 'Muro Creativo', icon: Lightbulb, color: 'text-amber-500 dark:text-amber-400', bg: 'bg-amber-500/10 dark:bg-amber-500/15', badge: null, show: props.isMarketing },
-      { id: 'context' as TabType, label: 'Entrega de Relevo', icon: ClipboardCheck, color: 'text-rose-500 dark:text-rose-400', bg: 'bg-rose-500/10 dark:bg-rose-500/15', badge: null, show: true },
+      { id: 'context' as TabType, label: 'Historial de Relevo', icon: ClipboardCheck, color: 'text-rose-500 dark:text-rose-400', bg: 'bg-rose-500/10 dark:bg-rose-500/15', badge: null, show: true },
     ]
   }
 ]

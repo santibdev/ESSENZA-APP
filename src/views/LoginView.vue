@@ -22,16 +22,44 @@ const showPassword = ref(false)
 const shakeError = ref(false)
 
 const canSubmit = computed(() => form.username.trim() && form.password.trim())
+const mustChangePasswordMode = ref(false)
+const tempUser = ref(null)
+const resetForm = reactive({ newPassword: '', confirmPassword: '' })
+const canSubmitReset = computed(() =>
+  resetForm.newPassword.length >= 4 &&
+  resetForm.newPassword === resetForm.confirmPassword
+)
 
 async function handleLogin() {
   if (!canSubmit.value || authStore.isLoading) return
   authStore.clearError()
-  const { success } = await authStore.login(form.username, form.password)
-  if (success) {
-    router.push({ name: 'dashboard' })
+  const res = await authStore.login(form.username, form.password)
+  if (res.success) {
+    if (res.mustChangePassword) {
+      tempUser.value = res.tempUser
+      mustChangePasswordMode.value = true
+    } else {
+      router.push({ name: 'dashboard' })
+    }
   } else {
     shakeError.value = true
     setTimeout(() => (shakeError.value = false), 650)
+  }
+}
+
+async function handlePasswordReset() {
+  if (!canSubmitReset.value || authStore.isLoading) return
+  const res = await authStore.changePassword(
+    tempUser.value.id,
+    tempUser.value.token,
+    resetForm.newPassword
+  )
+  if (res.success) {
+    toast.success('Contraseña actualizada. Ya podés ingresar.')
+    mustChangePasswordMode.value = false
+    form.password = resetForm.newPassword // Pre-fill for convenience
+  } else {
+    toast.error('Error al actualizar contraseña')
   }
 }
 </script>
@@ -61,8 +89,8 @@ async function handleLogin() {
         <!-- Card header -->
         <div class="px-8 pt-8 pb-6 border-b border-border">
           <div class="flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center
-                        flex-shrink-0 shadow-md shadow-primary/30 overflow-hidden p-1">
+            <div class="w-11 h-11  flex items-center justify-center
+                        flex-shrink-0 shadow-md overflow-hidden p-1">
               <img src="../assets/img/isologo.png" alt="Logo" class="w-full h-full object-contain" />
             </div>
             <div>
@@ -76,8 +104,8 @@ async function handleLogin() {
           </div>
         </div>
 
-        <!-- Form body -->
-        <div class="px-8 py-7 space-y-5">
+        <!-- Form body (Standard) -->
+        <div v-if="!mustChangePasswordMode" class="px-8 py-7 space-y-5 animate-fade-in">
 
           <!-- Username -->
           <div class="space-y-2">
@@ -119,6 +147,44 @@ async function handleLogin() {
             </UiButton>
           </div>
 
+        </div>
+
+        <!-- Form body (Reset Password Required) -->
+        <div v-else class="px-8 py-7 space-y-5 animate-fade-in">
+          <div class="p-3 bg-primary/10 rounded-lg border border-primary/20">
+            <p class="text-[11px] text-primary font-bold uppercase tracking-wider text-center">
+              Cambio de Contraseña Obligatorio
+            </p>
+            <p class="text-[10px] text-muted-foreground text-center mt-1">
+              Es necesario establecer una clave nueva en tu primer ingreso.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <UiLabel for="newPassword">Nueva Contraseña</UiLabel>
+            <UiInput id="newPassword" v-model="resetForm.newPassword" type="password" placeholder="Mínimo 4 caracteres"
+              :disabled="authStore.isLoading" />
+          </div>
+
+          <div class="space-y-2">
+            <UiLabel for="confirmPassword">Confirmar Contraseña</UiLabel>
+            <UiInput id="confirmPassword" v-model="resetForm.confirmPassword" type="password"
+              placeholder="Repetí tu nueva clave" :disabled="authStore.isLoading" />
+          </div>
+
+          <div class="pt-1 space-y-3">
+            <UiButton class="w-full h-11 gap-2 font-medium" :disabled="!canSubmitReset || authStore.isLoading"
+              @click="handlePasswordReset">
+              <Loader2 v-if="authStore.isLoading" class="w-4 h-4 animate-spin" />
+              <template v-else>
+                Confirmar y Entrar
+              </template>
+            </UiButton>
+            <button @click="mustChangePasswordMode = false"
+              class="w-full text-[10px] text-muted-foreground hover:text-foreground">
+              Volver al Inicio
+            </button>
+          </div>
         </div>
 
         <!-- Card footer -->

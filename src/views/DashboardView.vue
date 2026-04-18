@@ -7,7 +7,7 @@ import { toast } from 'vue-sonner'
 // UI Primitives
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogScrollContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -202,22 +202,35 @@ async function submitEndShift(startExtras: boolean) {
       ? `[CIERRE FORZADO] Razón: ${emergencyReason.value}. ${observations.value ? '\nNotas: ' + observations.value : ''}`
       : observations.value
 
+    const filteredReports = perModelReports.value
+      .filter(r => r.handoffNotes || r.spenders.some(s => s.name || s.username || s.amount))
+
     payload = {
       earnings: startEarnings.value, earningsMessages: startEarningsMessages.value,
       earningsTips: startEarningsTips.value, earningsPosts: startEarningsPosts.value,
       growthPercentage: startGrowthPercentage.value, observations: finalObs, force: isForceExit.value,
-      modelReports: perModelReports.value
-        .filter(r => r.handoffNotes || r.spenders.some(s => s.name || s.username || s.amount))
-        .map(r => ({
-          modelName: r.modelName,
-          soldContentJson: JSON.stringify(r.handoffNotes ? r.handoffNotes.split('\n').filter(Boolean) : []),
-          spendersJson: JSON.stringify(r.spenders.filter(s => s.name || s.username || s.amount))
-        }))
+      modelReports: filteredReports.map(r => ({
+        modelName: r.modelName,
+        soldContentJson: JSON.stringify(r.handoffNotes ? r.handoffNotes.split('\n').filter(Boolean) : []),
+        spendersJson: JSON.stringify(r.spenders.filter(s => s.name || s.username || s.amount))
+      }))
     }
 
     const res = await fetch(`${apiUrl}/shifts/${currentShiftId.value}/end`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) })
     if (res.status === 412) { const e = await res.json(); toast.error(e.message || 'El turno está incompleto.'); showReportModal.value = false; return }
     if (!res.ok) throw new Error('Server error')
+
+    // Save to logbook for handoff view
+    if (filteredReports.length > 0) {
+      const logbookEntries = filteredReports.map(r => ({
+        ofModelId: r.modelId,
+        shiftId: currentShiftId.value,
+        message: r.handoffNotes || '',
+        soldContentJson: JSON.stringify(r.handoffNotes ? r.handoffNotes.split('\n').filter(Boolean) : []),
+        spendersJson: JSON.stringify(r.spenders.filter(s => s.name || s.username || s.amount))
+      }))
+      await fetch(`${apiUrl}/admin/models/logbook/batch`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(logbookEntries) }).catch(console.error)
+    }
 
     resetState()
     window.electronAPI?.shift?.stopped()
@@ -388,8 +401,9 @@ onUnmounted(() => {
           @start-shift="isExtraHoursSelection = $event; showStartModal = true" @toggle-break="toggleBreak"
           @end-shift="endShiftPrompt" />
 
-        <ScrollArea class="flex-1 bg-zinc-100 dark:bg-zinc-800">
-          <div class="max-w-[1400px] mx-auto p-4 lg:p-8 space-y-8 relative z-10 transition-all">
+        <div
+          class="flex-1 overflow-y-auto bg-zinc-100 dark:bg-zinc-800 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
+          <div class="max-w-[1400px] mx-auto p-4 lg:p-8 space-y-8 relative z-10 transition-all min-h-full">
 
             <AnnouncementsBanner />
 
@@ -440,9 +454,13 @@ onUnmounted(() => {
 
             <!-- Case: CONTEXT / BITACORA -->
             <template v-else-if="activeTab === 'context'">
-              <div v-if="assignedModels.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <ModelHandoffCard v-for="m in assignedModels" :key="m.id" :model="{ name: m.name }"
-                  :entries="handoffData[m.id] || []" />
+              <div v-if="assignedModels.length > 0">
+                <h2 class="text-lg font-bold text-foreground mb-4">Historial de Relevo</h2>
+                <div class="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4">
+                  <div v-for="m in assignedModels" :key="m.id" class="flex-none w-96">
+                    <ModelHandoffCard :model="{ name: m.name, alias: m.alias }" :entries="handoffData[m.id] || []" />
+                  </div>
+                </div>
               </div>
             </template>
 
@@ -462,7 +480,7 @@ onUnmounted(() => {
             </template>
 
           </div>
-        </ScrollArea>
+        </div>
       </main>
 
       <!-- ── Modals ── -->
@@ -470,129 +488,100 @@ onUnmounted(() => {
       <Dialog v-model:open="showStartModal">
         <DialogContent class="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle class="text-lg font-black uppercase tracking-tight">Preparar Turno</DialogTitle>
-            <DialogDescription class="text-xs text-muted-foreground uppercase tracking-widest leading-none mt-1">
+            <DialogTitle>Preparar Turno</DialogTitle>
+            <DialogDescription>
               {{ isExtraHoursSelection ? 'Iniciando Horas Extras' : 'Iniciando Jornada Regular' }}
             </DialogDescription>
           </DialogHeader>
-          <div class="py-6 space-y-6">
-            <div class="space-y-4">
-              <div>
-                <label class="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2 block">Facturación
-                  Inicial ($)</label>
-                <Input type="number" v-model="startEarnings" placeholder="0.00" class="h-12 text-lg font-bold" />
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <Button @click="startShift(isExtraHoursSelection)"
-                class="h-12 rounded-xl font-bold uppercase tracking-wider text-xs">Confirmar</Button>
-              <Button @click="showStartModal = false" variant="outline"
-                class="h-12 rounded-xl font-bold uppercase tracking-wider text-xs">Cerrar</Button>
+          <div class="space-y-4 py-2">
+            <div class="space-y-2">
+              <label class="text-xs font-medium text-muted-foreground">Facturación Inicial ($)</label>
+              <Input type="number" v-model="startEarnings" placeholder="0.00" class="h-11 text-base font-bold" />
             </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" @click="showStartModal = false">Cancelar</Button>
+            <Button @click="startShift(isExtraHoursSelection)">Confirmar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <!-- End Shift / Report -->
       <Dialog v-model:open="showReportModal">
-        <DialogContent
-          class="sm:max-w-2xl h-[90vh] p-0 overflow-hidden flex flex-col">
-          <div :class="['h-1.5 w-full', isForceExit ? 'bg-red-500' : 'bg-emerald-500']" />
+        <DialogScrollContent class="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Reporte de Turno</DialogTitle>
+            <DialogDescription>Completa los datos para finalizar la sesión</DialogDescription>
+          </DialogHeader>
 
-          <ScrollArea class="flex-1 px-8 py-8">
-            <DialogHeader class="mb-8">
-              <DialogTitle class="text-2xl font-black uppercase tracking-tight">Reporte de Turno</DialogTitle>
-              <DialogDescription class="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Completa los
-                datos para finalizar</DialogDescription>
-            </DialogHeader>
+          <div class="space-y-6 py-2">
+            <!-- Force exit warning -->
+            <div v-if="isForceExit" class="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+              <p class="text-xs font-semibold text-destructive flex items-center gap-2 mb-2">
+                <AlertTriangle class="w-3.5 h-3.5" /> Cierre Anticipado
+              </p>
+              <Textarea v-model="emergencyReason" placeholder="Razón del cierre anticipado..."
+                class="border-destructive/30" />
+            </div>
 
-            <div class="space-y-8">
-              <div v-if="isForceExit" class="p-4 rounded-2xl bg-red-500/10 border border-red-500/20">
-                <p class="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <AlertTriangle class="w-3 h-3" /> Cierre Anticipado
-                </p>
-                <Textarea v-model="emergencyReason" placeholder="Razón del cierre anticipado..."
-                  class="border-red-500/30" />
+            <!-- Earnings -->
+            <div class="space-y-2">
+              <label class="text-xs font-medium text-muted-foreground block text-center">Facturación Neta Alcanzada
+                ($)</label>
+              <Input type="number" v-model="startEarnings" class="h-14 text-3xl font-black text-center" />
+            </div>
+
+            <Separator />
+
+            <!-- Per model reports -->
+            <div v-if="perModelReports.length > 0" class="space-y-4">
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Informe por Modelo</p>
+              <div class="flex flex-wrap gap-2">
+                <Button v-for="(mr, idx) in perModelReports" :key="mr.modelId" @click="selectedModelReportIdx = idx"
+                  size="sm" :variant="selectedModelReportIdx === idx ? 'default' : 'outline'">
+                  {{ mr.modelName }}
+                </Button>
               </div>
 
-              <div class="space-y-4">
-                <label
-                  class="text-[10px] font-black text-muted-foreground uppercase tracking-widest block text-center">Facturación
-                  Neta Alcanzada ($)</label>
-                <Input type="number" v-model="startEarnings"
-                  class="h-16 text-4xl font-black text-center text-emerald-500" />
-              </div>
+              <div class="p-4 rounded-lg bg-muted/50 border border-border space-y-4">
+                <Textarea v-model="perModelReports[selectedModelReportIdx].handoffNotes"
+                  placeholder="Observaciones sobre esta modelo (una por línea)..." class="h-28" />
 
-              <Separator />
-
-              <div v-if="perModelReports.length > 0" class="space-y-4">
-                <p class="text-xs font-black uppercase tracking-widest text-muted-foreground">Informe por Modelo</p>
-                <div class="flex flex-wrap gap-2">
-                  <button v-for="(mr, idx) in perModelReports" :key="mr.modelId" @click="selectedModelReportIdx = idx"
-                    :class="['px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border',
-                      selectedModelReportIdx === idx ? 'bg-primary text-primary-foreground border-primary' : 'bg-transparent text-muted-foreground border-border hover:border-primary/50']">
-                    {{ mr.modelName }}
-                  </button>
-                </div>
-
-                <div class="p-6 rounded-2xl bg-muted/50 border border-border space-y-4">
-                  <Textarea v-model="perModelReports[selectedModelReportIdx].handoffNotes"
-                    placeholder="Notas de relevo para la siguiente persona..." class="h-32" />
-
-                  <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                      <p class="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Spenders Principales</p>
-                      <Button @click="addSpender(selectedModelReportIdx)" variant="ghost" size="sm"
-                        class="h-6 text-[9px]">
-                        <Plus class="w-3 h-3 mr-1" /> Añadir
-                      </Button>
-                    </div>
-                    <div v-for="(sp, sIdx) in perModelReports[selectedModelReportIdx].spenders" :key="sIdx"
-                      class="flex gap-2">
-                      <Input v-model="sp.name" placeholder="Nombre" class="h-8 text-[11px]" />
-                      <Input v-model="sp.username" placeholder="@user" class="h-8 text-[11px]" />
-                      <Input v-model="sp.amount" placeholder="$" class="h-8 text-[11px] w-20" />
-                      <Button v-if="perModelReports[selectedModelReportIdx].spenders.length > 1"
-                        @click="removeSpender(selectedModelReportIdx, sIdx)" variant="ghost" size="icon"
-                        class="h-8 w-8">
-                        <X class="w-3 h-3" />
-                      </Button>
-                    </div>
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <p class="text-xs font-semibold text-muted-foreground">Spenders Principales</p>
+                    <Button @click="addSpender(selectedModelReportIdx)" variant="ghost" size="sm"
+                      class="h-7 text-xs gap-1">
+                      <Plus class="w-3 h-3" /> Añadir
+                    </Button>
+                  </div>
+                  <div v-for="(sp, sIdx) in perModelReports[selectedModelReportIdx].spenders" :key="sIdx"
+                    class="flex gap-2">
+                    <Input v-model="sp.name" placeholder="Nombre" class="h-8 text-xs" />
+                    <Input v-model="sp.username" placeholder="@user" class="h-8 text-xs" />
+                    <Input v-model="sp.amount" placeholder="$" class="h-8 text-xs w-20" />
+                    <Button v-if="perModelReports[selectedModelReportIdx].spenders.length > 1"
+                      @click="removeSpender(selectedModelReportIdx, sIdx)" variant="ghost" size="icon"
+                      class="h-8 w-8 shrink-0">
+                      <X class="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
               </div>
-
-              <div class="space-y-4">
-                <div class="flex items-center justify-between">
-                  <label class="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Observaciones Generales</label>
-                  <span v-if="shiftTemplates.length" class="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Plantillas Rápidas</span>
-                </div>
-
-                <div v-if="shiftTemplates.length" class="flex flex-wrap gap-1.5 p-2 rounded-xl bg-muted/50 border border-border">
-                  <button v-for="t in shiftTemplates" :key="t.id"
-                    @click="observations = observations ? observations + '\n' + t.content : t.content"
-                    class="px-2 py-1 rounded-md bg-background text-[10px] font-bold text-muted-foreground border border-border hover:border-primary/50 transition-all">
-                    {{ t.name }}
-                  </button>
-                </div>
-
-                <Textarea v-model="observations" placeholder="Escribe aquí las novedades más importantes..."
-                  class="h-24" />
-              </div>
             </div>
-          </ScrollArea>
 
-          <div class="p-8 bg-muted/30 border-t border-border grid grid-cols-2 gap-4">
-            <Button @click="submitEndShift(false)" :variant="isForceExit ? 'destructive' : 'default'"
-              class="h-12 font-black uppercase tracking-widest text-xs">
-              {{ isForceExit ? 'Cerrar con alerta' : 'Finalizar Turno' }}
-            </Button>
-            <Button v-if="!isExtraHours" @click="submitEndShift(true)" variant="secondary"
-              class="h-12 font-black uppercase tracking-widest text-xs">
+          </div>
+
+          <DialogFooter>
+            <Button v-if="!isExtraHours && !isForceExit" @click="submitEndShift(true)" variant="secondary">
               Cerrar e Iniciar Extras
             </Button>
-          </div>
-        </DialogContent>
+            <Button @click="submitEndShift(false)" :variant="isForceExit ? 'destructive' : 'default'"
+              class="text-white">
+              Finalizar Turno
+            </Button>
+          </DialogFooter>
+        </DialogScrollContent>
       </Dialog>
 
     </div>
