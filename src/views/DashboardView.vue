@@ -10,9 +10,10 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Dialog, DialogContent, DialogScrollContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+
 import { Separator } from '@/components/ui/separator'
-import { AlertTriangle, CheckCircle2, Plus, X, Play, Zap } from 'lucide-vue-next'
+import { AlertTriangle, Plus, X, Play, Zap } from 'lucide-vue-next'
+import ShiftModelReport from '@/components/dashboard/ShiftModelReport.vue'
 
 // Modular Components
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar.vue'
@@ -26,6 +27,7 @@ import MarketingPanel from '@/components/dashboard/MarketingPanel.vue'
 import CreativityWall from '@/components/dashboard/CreativityWall.vue'
 import LeadsKanban from '@/components/dashboard/LeadsKanban.vue'
 import UserShiftHistory from '@/components/dashboard/UserShiftHistory.vue'
+import ModelReportsSection from '@/components/dashboard/ModelReportsSection.vue'
 
 // Types
 interface AssignedModel { id: number; name: string; alias?: string }
@@ -34,7 +36,16 @@ interface HistoryEntry {
   observations: string; earnings: number; growthPercentage: number
 }
 interface ModelExitReport {
-  modelId: number; modelName: string; handoffNotes: string
+  modelId: number
+  modelName: string
+  observations: string        // general notes about the shift with this model
+  contentItems: string[]      // sold content tags e.g. ['mixto', 'foto en 4']
+  spenders: { name: string; username: string; amount: string }[]
+}
+
+interface ModelReport {
+  observations: string
+  contentItems: string[]
   spenders: { name: string; username: string; amount: string }[]
 }
 
@@ -76,6 +87,10 @@ const emergencyReason = ref('')
 const perModelReports = ref<ModelExitReport[]>([])
 const selectedModelReportIdx = ref(0)
 const shiftTemplates = ref<any[]>([])
+const modelReports = ref<Record<number, ModelReport>>({})
+const dailySummary = ref<any>(null)
+const shiftStartTime = ref<string | null>(null)
+const userAllSchedules = ref<any[]>([])
 
 // --- Computed ---
 const isMarketing = computed(() => auth.user?.role === 'ROLE_MARKETING')
@@ -102,6 +117,18 @@ const statusColor = computed(() => {
 })
 const statusDot = computed(() => statusColor.value)
 
+const dayTranslations: Record<string, string> = {
+  'MONDAY': 'Lun', 'TUESDAY': 'Mar', 'WEDNESDAY': 'Mié', 'THURSDAY': 'Jue',
+  'FRIDAY': 'Vie', 'SATURDAY': 'Sáb', 'SUNDAY': 'Dom'
+}
+const allDays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+
+const offDaysArray = computed(() => {
+  const scheduledDays = userAllSchedules.value.map(s => s.dayOfWeek)
+  if (scheduledDays.length === 0) return [] // Si no hay agenda cargada, no mostramos nada para evitar ruidos
+  return allDays.filter(day => !scheduledDays.includes(day)).map(day => dayTranslations[day])
+})
+
 // --- Fetch Templates ---
 async function fetchTemplates() {
   try {
@@ -110,6 +137,14 @@ async function fetchTemplates() {
   } catch (e) {
     console.error('Error fetching templates:', e)
   }
+}
+
+async function fetchUserAllSchedules() {
+  if (!auth.user?.id) return
+  try {
+    const res = await api.get(`/admin/users/schedule/user/${auth.user.id}`)
+    userAllSchedules.value = res.data || []
+  } catch (e) { console.error('Error fetching schedules:', e) }
 }
 let timerInterval: any = null
 let breakInterval: any = null
@@ -202,8 +237,27 @@ async function submitEndShift(startExtras: boolean) {
       ? `[CIERRE FORZADO] Razón: ${emergencyReason.value}. ${observations.value ? '\nNotas: ' + observations.value : ''}`
       : observations.value
 
-    const filteredReports = perModelReports.value
-      .filter(r => r.handoffNotes || r.spenders.some(s => s.name || s.username || s.amount))
+    // Build model reports from modelReports (from dashboard)
+    const filteredReports = assignedModels.value
+      .map(m => {
+        const report = modelReports.value[m.id]
+        if (!report) return null
+
+        const hasContent = report.handoffNotes ||
+          (report.contentItems && report.contentItems.length > 0) ||
+          (report.spenders && report.spenders.some(s => s.name || s.username || s.amount))
+
+        if (!hasContent) return null
+
+        return {
+          modelId: m.id,
+          modelName: m.name,
+          handoffNotes: report.handoffNotes || '',
+          contentItems: report.contentItems || [],
+          spenders: report.spenders || []
+        }
+      })
+      .filter(r => r !== null)
 
     payload = {
       earnings: startEarnings.value, earningsMessages: startEarningsMessages.value,
@@ -211,7 +265,7 @@ async function submitEndShift(startExtras: boolean) {
       growthPercentage: startGrowthPercentage.value, observations: finalObs, force: isForceExit.value,
       modelReports: filteredReports.map(r => ({
         modelName: r.modelName,
-        soldContentJson: JSON.stringify(r.handoffNotes ? r.handoffNotes.split('\n').filter(Boolean) : []),
+        soldContentJson: JSON.stringify(r.contentItems),
         spendersJson: JSON.stringify(r.spenders.filter(s => s.name || s.username || s.amount))
       }))
     }
@@ -226,7 +280,7 @@ async function submitEndShift(startExtras: boolean) {
         ofModelId: r.modelId,
         shiftId: currentShiftId.value,
         message: r.handoffNotes || '',
-        soldContentJson: JSON.stringify(r.handoffNotes ? r.handoffNotes.split('\n').filter(Boolean) : []),
+        soldContentJson: JSON.stringify(r.contentItems),
         spendersJson: JSON.stringify(r.spenders.filter(s => s.name || s.username || s.amount))
       }))
       await fetch(`${apiUrl}/admin/models/logbook/batch`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(logbookEntries) }).catch(console.error)
@@ -316,17 +370,18 @@ function startPolling() {
 // --- Handlers ---
 function initModelReports() {
   selectedModelReportIdx.value = 0
-  perModelReports.value = assignedModels.value.map(m => ({
-    modelId: m.id, modelName: m.name, handoffNotes: '',
-    spenders: [{ name: '', username: '', amount: '' }]
-  }))
+  perModelReports.value = assignedModels.value.map(m => {
+    const saved = modelReports.value[m.id] || { observations: '', contentItems: [], spenders: [{ name: '', username: '', amount: '' }] }
+    return {
+      modelId: m.id,
+      modelName: m.name,
+      observations: saved.observations || '',
+      contentItems: saved.contentItems?.length ? [...saved.contentItems] : [],
+      spenders: saved.spenders?.length ? [...saved.spenders] : [{ name: '', username: '', amount: '' }],
+    }
+  })
 }
-function addSpender(mIdx: number) {
-  perModelReports.value[mIdx].spenders.push({ name: '', username: '', amount: '' })
-}
-function removeSpender(mIdx: number, sIdx: number) {
-  perModelReports.value[mIdx].spenders.splice(sIdx, 1)
-}
+
 
 function resetState() {
   showReportModal.value = false; currentShiftId.value = null
@@ -355,6 +410,7 @@ async function loadHandoff() {
 
 onMounted(async () => {
   fetchTemplates()
+  fetchUserAllSchedules()
   // Initial data load
   try {
     const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })
@@ -391,6 +447,7 @@ onUnmounted(() => {
 
       <!-- Modular Sidebar -->
       <DashboardSidebar v-model:activeTab="activeTab" v-model:open="sidebarOpen" :is-marketing="isMarketing"
+        :off-days="offDaysArray"
         @logout="auth.logout(); router.push({ name: 'login' })" />
 
       <main class="flex-1 flex flex-col min-w-0 relative overflow-hidden transition-colors duration-300 ">
@@ -416,7 +473,9 @@ onUnmounted(() => {
               <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Modular Tracker/Timer Card -->
                 <TrackerCard :effective-work-seconds="effectiveWorkSeconds" :is-working="isWorking"
-                  :is-paused="isPaused" :status-label="statusLabel" :status-dot="statusDot" @toggle-break="toggleBreak"
+                  :is-paused="isPaused" :status-label="statusLabel" :status-dot="statusDot"
+                  :shift-start-time="shiftStartTime ?? undefined" :daily-summary="dailySummary ?? undefined"
+                  :schedule-info="userSchedule ?? undefined" @toggle-break="toggleBreak"
                   @start-shift="isExtraHoursSelection = $event; showStartModal = true" @end-shift="endShiftPrompt" />
 
                 <!-- Modular Notes/Observations Card -->
@@ -424,30 +483,8 @@ onUnmounted(() => {
               </div>
 
               <!-- Info Cards section - Moved Below -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-6">
-                  <p class="text-[10px] font-black text-zinc-400 dark:text-zinc-600 uppercase tracking-widest mb-4">
-                    Meta Asignada</p>
-                  <div class="flex items-center justify-between">
-                    <p class="text-2xl font-black text-zinc-900 dark:text-white tabular-nums">{{
-                      formatTime(SHIFT_TARGET) }}</p>
-                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                      <CheckCircle2 class="w-5 h-5 text-emerald-500" />
-                    </div>
-                  </div>
-                </div>
-
-                <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-6">
-                  <p class="text-[10px] font-black text-zinc-400 dark:text-zinc-600 uppercase tracking-widest mb-4">
-                    Modelos de Hoy</p>
-                  <div class="flex flex-wrap gap-2">
-                    <div v-for="m in assignedModels" :key="m.id"
-                      class="px-3 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700">
-                      <span class="text-xs font-bold text-zinc-700 dark:text-zinc-300">{{ m.name }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ModelReportsSection v-model:model-reports="modelReports" :assigned-models="assignedModels"
+                :is-working="isWorking" />
 
               <MarketingPanel v-if="isMarketing" ref="marketingPanelRef" />
             </template>
@@ -511,65 +548,31 @@ onUnmounted(() => {
         <DialogScrollContent class="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Reporte de Turno</DialogTitle>
-            <DialogDescription>Completa los datos para finalizar la sesión</DialogDescription>
+            <DialogDescription>Completá los datos para finalizar la sesión</DialogDescription>
           </DialogHeader>
 
-          <div class="space-y-6 py-2">
+          <div class="space-y-4 py-2">
             <!-- Force exit warning -->
-            <div v-if="isForceExit" class="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+            <div v-if="isForceExit" class="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
               <p class="text-xs font-semibold text-destructive flex items-center gap-2 mb-2">
                 <AlertTriangle class="w-3.5 h-3.5" /> Cierre Anticipado
               </p>
               <Textarea v-model="emergencyReason" placeholder="Razón del cierre anticipado..."
-                class="border-destructive/30" />
+                class="border-destructive/30 text-sm" />
             </div>
 
             <!-- Earnings -->
             <div class="space-y-2">
-              <label class="text-xs font-medium text-muted-foreground block text-center">Facturación Neta Alcanzada
-                ($)</label>
-              <Input type="number" v-model="startEarnings" class="h-14 text-3xl font-black text-center" />
+              <label class="text-sm font-semibold text-foreground">Facturación Neta ($)</label>
+              <Input type="number" v-model="startEarnings" placeholder="0" class="h-12 text-2xl font-black" />
             </div>
 
-            <Separator />
-
-            <!-- Per model reports -->
-            <div v-if="perModelReports.length > 0" class="space-y-4">
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Informe por Modelo</p>
-              <div class="flex flex-wrap gap-2">
-                <Button v-for="(mr, idx) in perModelReports" :key="mr.modelId" @click="selectedModelReportIdx = idx"
-                  size="sm" :variant="selectedModelReportIdx === idx ? 'default' : 'outline'">
-                  {{ mr.modelName }}
-                </Button>
-              </div>
-
-              <div class="p-4 rounded-lg bg-muted/50 border border-border space-y-4">
-                <Textarea v-model="perModelReports[selectedModelReportIdx].handoffNotes"
-                  placeholder="Observaciones sobre esta modelo (una por línea)..." class="h-28" />
-
-                <div class="space-y-3">
-                  <div class="flex items-center justify-between">
-                    <p class="text-xs font-semibold text-muted-foreground">Spenders Principales</p>
-                    <Button @click="addSpender(selectedModelReportIdx)" variant="ghost" size="sm"
-                      class="h-7 text-xs gap-1">
-                      <Plus class="w-3 h-3" /> Añadir
-                    </Button>
-                  </div>
-                  <div v-for="(sp, sIdx) in perModelReports[selectedModelReportIdx].spenders" :key="sIdx"
-                    class="flex gap-2">
-                    <Input v-model="sp.name" placeholder="Nombre" class="h-8 text-xs" />
-                    <Input v-model="sp.username" placeholder="@user" class="h-8 text-xs" />
-                    <Input v-model="sp.amount" placeholder="$" class="h-8 text-xs w-20" />
-                    <Button v-if="perModelReports[selectedModelReportIdx].spenders.length > 1"
-                      @click="removeSpender(selectedModelReportIdx, sIdx)" variant="ghost" size="icon"
-                      class="h-8 w-8 shrink-0">
-                      <X class="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+            <!-- General Observations -->
+            <div class="space-y-2">
+              <label class="text-sm font-semibold text-foreground">Observaciones Generales</label>
+              <Textarea v-model="observations" placeholder="Notas generales sobre el turno..."
+                class="min-h-[120px] text-sm resize-none" />
             </div>
-
           </div>
 
           <DialogFooter>

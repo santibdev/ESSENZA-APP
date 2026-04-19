@@ -47,7 +47,8 @@ export const useAuthStore = defineStore('auth', () => {
         username: data.username,
         role: data.role,
         token: data.token,
-        mustChangePassword: data.mustChangePassword
+        mustChangePassword: data.mustChangePassword,
+        timezone: data.timezone || 'America/Argentina/Buenos_Aires'
       }
       
       if (data.mustChangePassword) {
@@ -99,5 +100,11 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
   }
 
-  return { user, isAuthenticated, isLoading, error, login, logout, clearError, changePassword }
+  function updateTimezone(tz) {
+    if (!user.value) return
+    user.value.timezone = tz
+    localStorage.setItem('user', JSON.stringify(user.value))
+  }
+
+  return { user, isAuthenticated, isLoading, error, login, logout, clearError, changePassword, updateTimezone }
 })

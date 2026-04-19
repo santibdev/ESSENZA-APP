@@ -1,15 +1,38 @@
 <script setup lang="ts">
-import { Coffee, Play, Timer, Pause, Zap, X } from 'lucide-vue-next'
+import { Coffee, Play, Timer, Pause, Zap, X, Clock, AlertTriangle, CheckCircle2, CalendarClock } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ref, watch, computed } from 'vue'
+import { useTimezone } from '@/lib/useTimezone'
+
+interface DailySummary {
+  todayActiveSeconds: number
+  todayBreakSeconds: number
+  targetSeconds: number
+  remainingSeconds: number
+  todayShiftCount: number
+  dayComplete: boolean
+  yesterdayDebtSeconds: number
+}
+
+interface ScheduleInfo {
+  timezone?: string                
+  template?: {
+    startTime?: string             
+    endTime?: string
+    name?: string
+  }
+}
 
 const props = defineProps<{
-  effectiveWorkSeconds: number
+  effectiveWorkSeconds: number     
   isWorking: boolean
   isPaused: boolean
   statusLabel: string
   statusDot: string
+  shiftStartTime?: string          
+  dailySummary?: DailySummary      
+  scheduleInfo?: ScheduleInfo      
 }>()
 
 const emit = defineEmits<{
@@ -19,10 +42,12 @@ const emit = defineEmits<{
   (e: 'endShift'): void
 }>()
 
-const displayDigits = ref(['0', '0', ':', '0', '0', ':', '0', '0'])
-const animatingIndex = ref<number[]>([])
+const { formatTime: fmtLocal, convertShiftTime } = useTimezone()
 
-const formatTime = (secs: number): string => {
+// Timer local para suavidad visual
+const displayTime = ref('00:00:00')
+
+const formatSecs = (secs: number): string => {
   const h = Math.floor(secs / 3600)
   const m = Math.floor((secs % 3600) / 60)
   const s = secs % 60
@@ -30,148 +55,154 @@ const formatTime = (secs: number): string => {
 }
 
 watch(() => props.effectiveWorkSeconds, (newVal) => {
-  const newDigits = formatTime(newVal).split('')
-  const changed: number[] = []
-  newDigits.forEach((d, i) => { if (d !== displayDigits.value[i]) changed.push(i) })
-  animatingIndex.value = changed
-  displayDigits.value = newDigits
-  setTimeout(() => { animatingIndex.value = [] }, 350)
+  displayTime.value = formatSecs(newVal)
 }, { immediate: true })
 
-const progressPercent = computed(() =>
-  Math.min((props.effectiveWorkSeconds / 28800) * 100, 100)
-)
+// Lógica de progreso diario
+const todayAccumulated = computed(() => {
+  if (!props.dailySummary) return props.effectiveWorkSeconds
+  const previousShiftsSeconds = props.dailySummary.todayActiveSeconds
+  return props.isWorking
+    ? previousShiftsSeconds + props.effectiveWorkSeconds
+    : previousShiftsSeconds
+})
 
-const hoursWorked = computed(() =>
-  (props.effectiveWorkSeconds / 3600).toFixed(1)
-)
+const targetSeconds = computed(() => props.dailySummary?.targetSeconds ?? 28800)
+const progressPercent = computed(() => Math.min((todayAccumulated.value / targetSeconds.value) * 100, 100))
+
+const hoursLabel = computed(() => {
+  const h = Math.floor(todayAccumulated.value / 3600)
+  const m = Math.floor((todayAccumulated.value % 3600) / 60)
+  return `${h}h ${m}m`
+})
+
+const debtSeconds = computed(() => props.dailySummary?.yesterdayDebtSeconds ?? 0)
+const fmtDebt = (secs: number) => {
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
+const remainingSeconds = computed(() => Math.max(0, targetSeconds.value - todayAccumulated.value))
+
+// Horarios de entrada y asignados
+const entryTime = computed(() => {
+  if (!props.shiftStartTime) return null
+  return fmtLocal(props.shiftStartTime)
+})
+
+const assignedStart = computed(() => {
+  const t = props.scheduleInfo?.template?.startTime
+  const tz = props.scheduleInfo?.timezone
+  if (!t || !tz) return null
+  return convertShiftTime(t.slice(0, 5), tz)
+})
+
+const assignedEnd = computed(() => {
+  const t = props.scheduleInfo?.template?.endTime
+  const tz = props.scheduleInfo?.timezone
+  if (!t || !tz) return null
+  return convertShiftTime(t.slice(0, 5), tz)
+})
 </script>
 
 <template>
-  <div class="lg:col-span-2 rounded-xl border border-border bg-card p-6 flex flex-col gap-6">
-
-    <!-- Header row -->
+  <div class="lg:col-span-2 rounded-2xl border border-border bg-card p-6 flex flex-col gap-6 transition-all duration-300 group/card">
+    <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <div
-          class="w-8 h-8 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center transition-colors duration-300">
-          <Timer class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/5 transition-all duration-300 group-hover/card:bg-primary/10">
+          <Timer class="w-4 h-4 text-primary" />
         </div>
-        <div>
-          <p class="text-sm font-medium text-foreground leading-none">Tiempo efectivo</p>
-          <p class="text-xs text-muted-foreground mt-0.5">Jornada de hoy</p>
+        <h2 class="text-sm font-black uppercase tracking-widest text-muted-foreground">Control de Turno</h2>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <Badge v-if="debtSeconds > 0" variant="outline"
+          class="gap-1.5 px-3 py-1 text-[10px] font-black uppercase text-amber-500 border-amber-500/20 bg-amber-500/5">
+          <AlertTriangle class="w-3 h-3" />
+          Deuda: {{ fmtDebt(debtSeconds) }}
+        </Badge>
+
+        <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-border/50">
+          <span :class="['w-1.5 h-1.5 rounded-full animate-pulse', statusDot]" />
+          <span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{{ statusLabel }}</span>
         </div>
       </div>
-
-      <Badge :variant="isWorking && !isPaused ? 'default' : 'secondary'" class="gap-1.5 text-xs font-medium">
-        <span :class="[
-          'w-1.5 h-1.5 rounded-full',
-          isWorking && !isPaused ? 'bg-emerald-400 animate-pulse' :
-            isPaused ? 'bg-amber-400' :
-              'bg-muted-foreground/50'
-        ]" />
-        {{ statusLabel }}
-      </Badge>
     </div>
 
-    <!-- Timer -->
-    <div class="flex flex-col items-center gap-3 py-4">
-      <div class="flex items-center font-mono font-bold tabular-nums tracking-tight leading-none select-none"
-        style="font-size: clamp(3.5rem, 10vw, 5.5rem);">
-        <span v-for="(digit, i) in displayDigits" :key="i" :class="[
-          'inline-block transition-colors duration-500',
-          digit === ':'
-            ? 'text-muted-foreground/20 mx-1'
-            : !isWorking ? 'text-muted-foreground/40' :
-              isPaused ? 'text-primary glow-primary' :
-                'text-primary glow-primary',
-          animatingIndex.includes(i) ? 'digit-flip' : ''
-        ]">{{ digit }}</span>
+    <!-- Info Section (Antiguo estilo simple) -->
+    <div v-if="assignedStart || entryTime" class="flex flex-wrap gap-4 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-border/40">
+      <div v-if="assignedStart" class="flex-1 min-w-[140px] space-y-1">
+        <p class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Horario Asignado</p>
+        <p class="text-xs font-black text-foreground">
+          {{ assignedStart }} a {{ assignedEnd }}
+        </p>
+      </div>
+      <div v-if="entryTime" class="flex-1 min-w-[140px] space-y-1 border-l border-border/20 pl-4">
+        <p class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Hora de Entrada</p>
+        <p class="text-xs font-black text-emerald-500">
+          {{ entryTime }}
+        </p>
       </div>
     </div>
 
-    <!-- Progress bar -->
-    <div class="space-y-1.5">
-      <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div class="h-full rounded-full transition-all duration-1000 ease-out" :class="!isWorking ? 'bg-muted-foreground/30' :
-          isPaused ? 'bg-amber-500' :
-            'bg-emerald-500'
-          " :style="{ width: `${progressPercent}%` }" />
-      </div>
-      <div class="flex justify-between text-[10px] text-muted-foreground tabular-nums">
-        <span>0h</span>
-        <span>2h</span>
-        <span>4h</span>
-        <span>6h</span>
-        <span>8h</span>
+    <!-- Timer Display (Estilo original simple) -->
+    <div class="flex flex-col items-center py-2">
+      <p class="text-7xl lg:text-8xl font-black tracking-tighter tabular-nums leading-none"
+        :class="isWorking ? 'text-foreground' : 'text-zinc-200 dark:text-zinc-800'">
+        {{ displayTime }}
+      </p>
+      <div v-if="(dailySummary?.todayShiftCount ?? 0) > 0" class="mt-4 flex items-center gap-2">
+        <Badge variant="secondary" class="text-[9px] font-bold uppercase">{{ (dailySummary?.todayShiftCount ?? 0) }} Sesiones Hoy</Badge>
+        <span class="text-[11px] font-medium text-muted-foreground">Total: {{ hoursLabel }}</span>
       </div>
     </div>
 
-    <!-- Separator -->
-    <div class="border-t border-border" />
+    <!-- Progress section -->
+    <div class="space-y-3">
+      <div class="flex items-end justify-between">
+        <p class="text-[11px] font-black text-muted-foreground uppercase tracking-widest">Progreso Diario</p>
+        <p class="text-sm font-black tabular-nums">
+          {{ Math.floor(progressPercent) }}%
+          <span class="text-[10px] text-muted-foreground ml-1">Meta: {{ Math.floor(targetSeconds / 3600) }}h</span>
+        </p>
+      </div>
+      <div class="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-900 overflow-hidden border border-border/10">
+        <div class="h-full bg-emerald-500 transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+          :style="{ width: `${progressPercent}%` }" />
+      </div>
+    </div>
 
     <!-- Actions -->
-    <div class="flex items-center justify-between gap-3">
+    <div class="flex items-center justify-between gap-4 mt-2">
       <template v-if="isWorking">
-        <p class="text-xs text-muted-foreground flex items-center gap-2">
+        <p class="text-xs font-bold text-muted-foreground uppercase tracking-tight flex items-center gap-2">
           <span :class="['w-1.5 h-1.5 rounded-full', isPaused ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse']" />
-          {{ isPaused ? 'En break · pausado' : 'Turno activo · corriendo' }}
+          {{ isPaused ? 'Sesión en pausa' : 'Trabajando' }}
         </p>
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" class="gap-2 h-9" @click="emit('toggleBreak')">
-            <component :is="isPaused ? Play : Coffee" class="w-3.5 h-3.5" />
+          <Button variant="outline" size="sm" class="h-9 px-4 font-bold border-border/80" @click="emit('toggleBreak')">
+            <component :is="isPaused ? Play : Coffee" class="w-4 h-4 mr-2" />
             {{ isPaused ? 'Retomar' : 'Break' }}
           </Button>
-          <Button variant="destructive" size="sm" class="gap-2 h-9 text-white" @click="emit('endShift')">
-            <X class="w-3.5 h-3.5" />
-            Detener
+          <Button variant="destructive" size="sm" class="h-9 px-4 font-bold" @click="emit('endShift')">
+            Terminar
           </Button>
         </div>
       </template>
-
       <template v-else>
-        <div class="flex flex-col items-start gap-1">
-          <p class="text-xs text-muted-foreground font-medium">Sin turno activo</p>
-          <p class="text-[10px] text-muted-foreground/50">Iniciá para comenzar a trackear</p>
-        </div>
+        <p class="text-xs font-bold text-muted-foreground uppercase tracking-tight">Offline</p>
         <div class="flex items-center gap-2">
-          <Button size="sm" variant="outline" class="gap-2 h-9" @click="emit('startShift', true)">
-            <Zap class="w-3.5 h-3.5" />
-            Extras
+          <Button size="sm" variant="outline" class="h-9 border-border/80 font-bold" @click="emit('startShift', true)">
+            <Zap class="w-3.5 h-3.5 mr-2 text-amber-500 fill-amber-500" />
+            Horas Extras
           </Button>
-          <Button size="sm" class="gap-2 h-9" @click="emit('startShift', false)">
-            <Play class="w-3.5 h-3.5" />
-            Iniciar jornada
+          <Button size="sm" class="h-9 px-6 font-black tracking-wide" @click="emit('startShift', false)">
+            {{ (dailySummary?.todayShiftCount ?? 0) > 0 ? 'CONTINUAR JORNADA' : 'INICIAR TURNO' }}
           </Button>
         </div>
       </template>
     </div>
-
   </div>
 </template>
-
-<style scoped>
-@keyframes digitFlip {
-  0% {
-    opacity: 0;
-    transform: translateY(-25%) scaleY(0.7);
-    filter: blur(3px);
-  }
-
-  65% {
-    opacity: 1;
-    transform: translateY(3%) scaleY(1.04);
-    filter: blur(0);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scaleY(1);
-    filter: blur(0);
-  }
-}
-
-.digit-flip {
-  animation: digitFlip 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-</style>

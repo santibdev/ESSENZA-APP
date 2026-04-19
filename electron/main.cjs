@@ -126,6 +126,7 @@ function createWindow() {
     minHeight: 600,
     frame: false,
     backgroundColor: '#08080f',
+    icon: path.join(__dirname, '../public/essenza.ico'),
     webPreferences: {
       backgroundThrottling: false,
       preload: path.join(__dirname, 'preload.cjs'),

@@ -56,11 +56,11 @@ const formatTime = (secs: number): string => {
           sub: 'Total de descansos (Máx 30min)',
           accent: breakTime > 1800 ? 'bg-rose-500' : 'bg-blue-600'
         }
-      ]" :key="k.l" class="border-border/50 hover:border-border transition-colors relative overflow-hidden">
+      ]" :key="k.l" class="border-border/50 hover:border-border transition-all duration-300 relative overflow-hidden group hover:-translate-y-0.5">
         <CardContent class="p-5">
           <div class="flex items-start justify-between mb-3">
-            <div class="flex items-center gap-1.5">
-              <p class="text-[11px] font-black text-muted-foreground uppercase tracking-[0.15em]Leading-none">{{ k.l }}
+            <div class="flex items-center gap-1.5 ">
+              <p class="text-[11px] font-black text-muted-foreground uppercase tracking-[0.15em] leading-none">{{ k.l }}
               </p>
               <Tooltip>
                 <TooltipTrigger>
@@ -72,11 +72,13 @@ const formatTime = (secs: number): string => {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <component :is="k.i" class="w-4 h-4" :class="k.c" />
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 bg-transparent group-hover:bg-zinc-100 dark:group-hover:bg-zinc-900 shadow-none group-hover:shadow-sm">
+              <component :is="k.i" class="w-4 h-4" :class="k.c" />
+            </div>
           </div>
-          <p class="text-3xl font-black tabular-nums leading-none tracking-tight">{{ k.v }}</p>
+          <p class="text-3xl font-black tabular-nums leading-none tracking-tight group-hover:text-primary transition-colors">{{ k.v }}</p>
         </CardContent>
-        <div class="absolute bottom-0 left-0 right-0 h-0.5 opacity-60" :class="k.accent" />
+        <div class="absolute bottom-0 left-0 right-0 h-0.5 opacity-60 transition-all duration-300 group-hover:h-1" :class="k.accent" />
       </Card>
     </div>
   </TooltipProvider>
