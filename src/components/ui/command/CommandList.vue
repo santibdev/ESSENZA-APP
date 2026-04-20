@@ -1,6 +1,6 @@
 <script setup>
 import { reactiveOmit } from "@vueuse/core";
-import { DialogDescription, useForwardProps } from "reka-ui";
+import { ListboxContent, useForwardProps } from "reka-ui";
 import { cn } from "@/lib/utils";
 
 const props = defineProps({
@@ -15,14 +15,16 @@ const props = defineProps({
 
 const delegatedProps = reactiveOmit(props, "class");
 
-const forwardedProps = useForwardProps(delegatedProps);
+const forwarded = useForwardProps(delegatedProps);
 </script>
 
 <template>
-  <DialogDescription
-    v-bind="forwardedProps"
-    :class="cn('text-sm text-muted-foreground', props.class)"
+  <ListboxContent
+    v-bind="forwarded"
+    :class="cn('max-h-[300px] overflow-y-auto overflow-x-hidden', props.class)"
   >
-    <slot />
-  </DialogDescription>
+    <div role="presentation">
+      <slot />
+    </div>
+  </ListboxContent>
 </template>

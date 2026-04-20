@@ -1,7 +1,9 @@
 <script setup>
 import { reactiveOmit } from "@vueuse/core";
-import { DialogDescription, useForwardProps } from "reka-ui";
+import { Primitive } from "reka-ui";
+import { computed } from "vue";
 import { cn } from "@/lib/utils";
+import { useCommand } from ".";
 
 const props = defineProps({
   asChild: { type: Boolean, required: false },
@@ -15,14 +17,18 @@ const props = defineProps({
 
 const delegatedProps = reactiveOmit(props, "class");
 
-const forwardedProps = useForwardProps(delegatedProps);
+const { filterState } = useCommand();
+const isRender = computed(
+  () => !!filterState.search && filterState.filtered.count === 0,
+);
 </script>
 
 <template>
-  <DialogDescription
-    v-bind="forwardedProps"
-    :class="cn('text-sm text-muted-foreground', props.class)"
+  <Primitive
+    v-if="isRender"
+    v-bind="delegatedProps"
+    :class="cn('py-6 text-center text-sm', props.class)"
   >
     <slot />
-  </DialogDescription>
+  </Primitive>
 </template>

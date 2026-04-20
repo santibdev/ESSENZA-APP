@@ -13,11 +13,11 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="rounded-xl border border-border bg-card p-6 flex flex-col gap-4">
+  <div class="rounded-2xl border border-border bg-card p-6 flex flex-col gap-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-          <ClipboardList class="w-4 h-4 text-primary" />
+        <div class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+          <ClipboardList class="w-4 h-4 text-purple-500" />
         </div>
         <div>
           <p class="text-sm font-bold text-foreground leading-none">Bitácora</p>

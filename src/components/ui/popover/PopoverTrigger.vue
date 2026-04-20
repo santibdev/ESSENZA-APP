@@ -1,5 +1,5 @@
 <script setup>
-import { DialogTrigger } from "reka-ui";
+import { PopoverTrigger } from "reka-ui";
 
 const props = defineProps({
   asChild: { type: Boolean, required: false },
@@ -8,7 +8,7 @@ const props = defineProps({
 </script>
 
 <template>
-  <DialogTrigger v-bind="props">
+  <PopoverTrigger v-bind="props">
     <slot />
-  </DialogTrigger>
+  </PopoverTrigger>
 </template>
