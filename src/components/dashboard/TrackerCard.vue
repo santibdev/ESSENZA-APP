@@ -113,8 +113,7 @@ const assignedEnd = computed(() => {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <div
-          class="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/10">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/10">
           <Timer class="w-4 h-4 text-blue-500" />
         </div>
         <div>
@@ -143,7 +142,8 @@ const assignedEnd = computed(() => {
                 <Info class="w-3.5 h-3.5 text-muted-foreground/40" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="left" class="max-w-[200px] text-[10px] font-medium leading-relaxed bg-zinc-900 border-zinc-800 text-white">
+            <TooltipContent side="left"
+              class="max-w-[200px] text-[10px] font-medium leading-relaxed bg-zinc-900 border-zinc-800 text-white">
               Controla tu turno: inicia, pausa y finaliza sesiones. El progreso diario se calcula automáticamente.
             </TooltipContent>
           </Tooltip>
@@ -217,11 +217,11 @@ const assignedEnd = computed(() => {
         <p class="text-xs  text-muted-foreground uppercase tracking-tight">Offline</p>
         <div class="flex items-center gap-2">
           <Button size="sm" variant="outline" class="h-9 border-border/80 " @click="emit('startShift', true)">
-            <Zap class="w-3.5 h-3.5 mr-2 text-amber-500 fill-amber-500" />
-            Horas Extras
+
+            Horas extras
           </Button>
-          <Button size="sm" class="h-9 px-6 font-black tracking-wide" @click="emit('startShift', false)">
-            {{ (dailySummary?.todayShiftCount ?? 0) > 0 ? 'CONTINUAR JORNADA' : 'INICIAR TURNO' }}
+          <Button size="sm" class="h-9 px-6 tracking-wide" @click="emit('startShift', false)">
+            {{ (dailySummary?.todayShiftCount ?? 0) > 0 ? 'Continuar jornada' : 'Iniciar turno' }}
           </Button>
         </div>
       </template>

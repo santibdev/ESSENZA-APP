@@ -7,17 +7,33 @@ const isDev = process.env.NODE_ENV === 'development'
 // ─── Auto Updater ─────────────────────────────────────────────────────────────
 autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = true
+autoUpdater.logger = require('electron').app ? null : null // Use our own logging below
+
+autoUpdater.on('checking-for-update', () => {
+  console.log('[AutoUpdater] Checking for update...')
+})
 
 autoUpdater.on('update-available', (info) => {
+  console.log('[AutoUpdater] Update available:', info.version)
   mainWindow?.webContents.send('updater:status', { type: 'available', info })
 })
 
+autoUpdater.on('update-not-available', (info) => {
+  console.log('[AutoUpdater] No update available. Current:', info.version)
+})
+
+autoUpdater.on('download-progress', (progress) => {
+  console.log(`[AutoUpdater] Download: ${Math.round(progress.percent)}%`)
+})
+
 autoUpdater.on('update-downloaded', (info) => {
+  console.log('[AutoUpdater] Update downloaded:', info.version)
   mainWindow?.webContents.send('updater:status', { type: 'ready', info })
 })
 
 autoUpdater.on('error', (err) => {
-  console.error('AutoUpdater error:', err?.message)
+  console.error('[AutoUpdater] Error:', err?.message || err)
+  console.error('[AutoUpdater] Stack:', err?.stack)
 })
 
 // El renderer puede pedirle al main que instale y reinicie
@@ -25,10 +41,13 @@ ipcMain.on('updater:install-now', () => {
   autoUpdater.quitAndInstall()
 })
 
-// Verificar actualizaciones periódicamente (cada 1 hora)
+// Verificar actualizaciones periódicamente (cada 30 minutos)
 setInterval(() => {
-  if (!isDev) autoUpdater.checkForUpdates()
-}, 60 * 60 * 1000)
+  if (!isDev) {
+    console.log('[AutoUpdater] Periodic check triggered')
+    autoUpdater.checkForUpdates().catch(e => console.error('[AutoUpdater] Periodic check error:', e?.message))
+  }
+}, 30 * 60 * 1000)
 
 let mainWindow = null
 let tray = null

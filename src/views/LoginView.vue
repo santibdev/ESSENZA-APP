@@ -19,6 +19,8 @@ const currentLogo = computed(() => themeStore.isDark ? darkLogo : lightLogo)
 
 const form = reactive({ username: '', password: '' })
 const showPassword = ref(false)
+const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
 const shakeError = ref(false)
 
 const canSubmit = computed(() => form.username.trim() && form.password.trim())
@@ -162,14 +164,28 @@ async function handlePasswordReset() {
 
           <div class="space-y-2">
             <UiLabel for="newPassword">Nueva Contraseña</UiLabel>
-            <UiInput id="newPassword" v-model="resetForm.newPassword" type="password" placeholder="Mínimo 4 caracteres"
-              :disabled="authStore.isLoading" />
+            <div class="relative">
+              <UiInput id="newPassword" v-model="resetForm.newPassword" :type="showNewPassword ? 'text' : 'password'" placeholder="Mínimo 4 caracteres"
+                :disabled="authStore.isLoading" class="pr-10" />
+              <button type="button" @click="showNewPassword = !showNewPassword" tabindex="-1" class="absolute right-3 top-1/2 -translate-y-1/2
+                       text-muted-foreground hover:text-foreground transition-colors">
+                <Eye v-if="!showNewPassword" class="w-4 h-4" />
+                <EyeOff v-else class="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div class="space-y-2">
             <UiLabel for="confirmPassword">Confirmar Contraseña</UiLabel>
-            <UiInput id="confirmPassword" v-model="resetForm.confirmPassword" type="password"
-              placeholder="Repetí tu nueva clave" :disabled="authStore.isLoading" />
+            <div class="relative">
+              <UiInput id="confirmPassword" v-model="resetForm.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'"
+                placeholder="Repetí tu nueva clave" :disabled="authStore.isLoading" class="pr-10" />
+              <button type="button" @click="showConfirmPassword = !showConfirmPassword" tabindex="-1" class="absolute right-3 top-1/2 -translate-y-1/2
+                       text-muted-foreground hover:text-foreground transition-colors">
+                <Eye v-if="!showConfirmPassword" class="w-4 h-4" />
+                <EyeOff v-else class="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div class="pt-1 space-y-3">

@@ -8,11 +8,15 @@ import { ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { toast } from 'vue-sonner'
 import api from '@/api'
-import { Globe, User, Clock, CheckCircle2, ChevronDown, Search } from 'lucide-vue-next'
+import { Globe, User, Clock, CheckCircle2, ChevronsUpDown, Search } from 'lucide-vue-next'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList
+} from '@/components/ui/command'
 import { TIMEZONE_OPTIONS } from '@/lib/useTimezone'
 
 const props = defineProps<{ open: boolean }>()
@@ -21,20 +25,16 @@ const emit = defineEmits<{ (e: 'update:open', v: boolean): void }>()
 const auth = useAuthStore()
 
 // ── Timezone selection ─────────────────────────────────────────────────────
-
 const selectedTz = ref(auth.user?.timezone || 'America/Argentina/Buenos_Aires')
-const tzSearch = ref('')
 const saving = ref(false)
+const comboboxOpen = ref(false)
 
 // Keep in sync if user object changes (e.g. after login)
 watch(() => auth.user?.timezone, (tz) => { if (tz) selectedTz.value = tz })
 
-const filteredTimezones = computed(() => {
-  const q = tzSearch.value.trim().toLowerCase()
-  if (!q) return TIMEZONE_OPTIONS
-  return TIMEZONE_OPTIONS.filter(t =>
-    t.label.toLowerCase().includes(q) || t.value.toLowerCase().includes(q)
-  )
+const selectedLabel = computed(() => {
+  const found = TIMEZONE_OPTIONS.find(t => t.value === selectedTz.value)
+  return found?.label || selectedTz.value
 })
 
 const currentLocalTime = computed(() => {
@@ -50,6 +50,11 @@ const currentLocalTime = computed(() => {
   } catch { return '' }
 })
 
+function selectTimezone(tz: string) {
+  selectedTz.value = tz
+  comboboxOpen.value = false
+}
+
 async function saveTimezone() {
   if (selectedTz.value === auth.user?.timezone) {
     toast.info('Ya estás usando ese horario')
@@ -60,7 +65,7 @@ async function saveTimezone() {
     await api.put('/admin/users/me/timezone', { timezone: selectedTz.value })
     auth.updateTimezone(selectedTz.value)
     toast.success('Zona horaria actualizada', {
-      description: `Ahora usás ${selectedTz.value}`
+      description: `Ahora usás ${selectedLabel.value}`
     })
   } catch {
     toast.error('Error al guardar la zona horaria')
@@ -68,8 +73,6 @@ async function saveTimezone() {
     saving.value = false
   }
 }
-
-const tzOpen = ref(false)
 </script>
 
 <template>
@@ -112,33 +115,42 @@ const tzOpen = ref(false)
             </div>
           </div>
 
-          <!-- Timezone search + list -->
-          <div class="space-y-2">
-            <div class="relative">
-              <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <input
-                v-model="tzSearch"
-                placeholder="Buscar país o ciudad..."
-                class="w-full h-9 pl-8 pr-3 rounded-md border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-
-            <div class="rounded-lg border border-border overflow-hidden max-h-56 overflow-y-auto">
-              <button
-                v-for="tz in filteredTimezones"
-                :key="tz.value"
-                class="w-full flex items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent"
-                :class="selectedTz === tz.value ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground'"
-                @click="selectedTz = tz.value"
+          <!-- Timezone Combobox -->
+          <Popover v-model:open="comboboxOpen">
+            <PopoverTrigger as-child>
+              <Button
+                variant="outline"
+                role="combobox"
+                :aria-expanded="comboboxOpen"
+                class="w-full justify-between h-10 font-medium text-sm"
               >
-                <span class="truncate">{{ tz.label }}</span>
-                <CheckCircle2 v-if="selectedTz === tz.value" class="w-3.5 h-3.5 shrink-0 ml-2 text-primary" />
-              </button>
-              <div v-if="!filteredTimezones.length" class="px-3 py-4 text-xs text-center text-muted-foreground">
-                Sin resultados para "{{ tzSearch }}"
-              </div>
-            </div>
-          </div>
+                <span class="truncate">{{ selectedLabel }}</span>
+                <ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent class="w-[var(--reka-popper-anchor-width)] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar país o ciudad..." />
+                <CommandEmpty>Sin resultados.</CommandEmpty>
+                <CommandList>
+                  <CommandGroup>
+                    <CommandItem
+                      v-for="tz in TIMEZONE_OPTIONS"
+                      :key="tz.value"
+                      :value="tz.label"
+                      @select="selectTimezone(tz.value)"
+                    >
+                      <CheckCircle2
+                        class="mr-2 h-4 w-4 shrink-0"
+                        :class="selectedTz === tz.value ? 'opacity-100 text-primary' : 'opacity-0'"
+                      />
+                      <span class="truncate">{{ tz.label }}</span>
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
 
           <!-- Current saved vs selected -->
           <div v-if="auth.user?.timezone !== selectedTz" class="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
@@ -173,3 +185,4 @@ const tzOpen = ref(false)
     </SheetContent>
   </Sheet>
 </template>
+

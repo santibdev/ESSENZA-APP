@@ -505,12 +505,13 @@ onUnmounted(() => {
 
             <!-- Case: CONTEXT / BITACORA -->
             <template v-else-if="activeTab === 'context'">
-              <div v-if="assignedModels.length > 0">
-                <h2 class="text-lg font-bold text-foreground mb-4">Historial de Relevo</h2>
-                <div class="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4">
-                  <div v-for="m in assignedModels" :key="m.id" class="flex-none w-96">
-                    <ModelHandoffCard :model="{ name: m.name, alias: m.alias }" :entries="handoffData[m.id] || []" />
-                  </div>
+              <div v-if="assignedModels.length > 0" class="space-y-6">
+                <div>
+                  <h2 class="text-lg font-bold text-foreground">Historial de Relevo</h2>
+                  <p class="text-sm text-muted-foreground mt-1">Información de turnos anteriores por modelo asignado.</p>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <ModelHandoffCard v-for="m in assignedModels" :key="m.id" :model="{ name: m.name, alias: m.alias }" :entries="handoffData[m.id] || []" />
                 </div>
               </div>
             </template>

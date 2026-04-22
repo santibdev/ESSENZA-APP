@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import {
   Clock, DollarSign, Calendar, ChevronDown, ChevronUp,
   Star, MessageSquare, TrendingUp, Code2, Timer, Zap,
-  Target, Info, Layers, UserCircle, Briefcase
+  Target, Info, Layers, UserCircle, Briefcase, LogIn, CalendarClock
 } from 'lucide-vue-next'
 import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
@@ -62,6 +62,18 @@ const formatDateTime = (ts: string) => {
 const formatSimpleDate = (ts: string) => {
   if (!ts) return '—'
   return new Date(ts).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+}
+
+const formatHour = (ts: string) => {
+  if (!ts) return null
+  return new Date(ts).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+}
+
+const getScheduleLabel = (shift: any) => {
+  if (!shift.scheduleStartTime) return null
+  const start = shift.scheduleStartTime?.slice(0, 5)
+  const end = shift.scheduleEndTime?.slice(0, 5)
+  return end ? `${start} — ${end}` : start
 }
 
 const formatDuration = (start: string, end: string) => {
@@ -236,7 +248,17 @@ const globalStats = computed(() => {
                     </div>
                     <div class="min-w-0">
                       <p class="text-sm font-black truncate leading-none mb-1">Sesión #{{ shift.id }}</p>
-                      <p class="text-[10px] uppercase font-bold text-muted-foreground">{{ formatDateTime(shift.startTime).split(' ')[0] }}</p>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <p class="text-[10px] uppercase font-bold text-muted-foreground">{{ formatDateTime(shift.startTime).split(' ')[0] }}</p>
+                        <div v-if="formatHour(shift.startTime)" class="flex items-center gap-1">
+                          <LogIn class="w-2.5 h-2.5 text-emerald-500" />
+                          <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{{ formatHour(shift.startTime) }}</span>
+                        </div>
+                        <div v-if="getScheduleLabel(shift)" class="flex items-center gap-1">
+                          <CalendarClock class="w-2.5 h-2.5 text-blue-500" />
+                          <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400">{{ getScheduleLabel(shift) }}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
