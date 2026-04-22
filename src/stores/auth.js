@@ -48,7 +48,9 @@ export const useAuthStore = defineStore('auth', () => {
         role: data.role,
         token: data.token,
         mustChangePassword: data.mustChangePassword,
-        timezone: data.timezone || 'America/Argentina/Buenos_Aires'
+        timezone: data.timezone || 'America/Argentina/Buenos_Aires',
+        shiftTargetSeconds: data.shiftTargetSeconds,
+        breakTargetSeconds: data.breakTargetSeconds
       }
       
       if (data.mustChangePassword) {
@@ -63,6 +65,31 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: false, error: err.message }
     } finally {
       isLoading.value = false
+    }
+  }
+
+  async function refreshUserProfile() {
+    if (!user.value) return
+    try {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://essenza-core-production.up.railway.app/api/v1'
+      const res = await fetch(`${apiUrl}/admin/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${user.value.token}`
+        }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        user.value = { 
+          ...user.value, 
+          shiftTargetSeconds: data.shiftTargetSeconds,
+          breakTargetSeconds: data.breakTargetSeconds,
+          name: data.name,
+          timezone: data.timezone || user.value.timezone
+        }
+        localStorage.setItem('user', JSON.stringify(user.value))
+      }
+    } catch (e) {
+      console.error('Error refreshing profile:', e)
     }
   }
 
@@ -106,5 +133,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('user', JSON.stringify(user.value))
   }
 
-  return { user, isAuthenticated, isLoading, error, login, logout, clearError, changePassword, updateTimezone }
+  return { user, isAuthenticated, isLoading, error, login, logout, clearError, changePassword, updateTimezone, refreshUserProfile }
 })

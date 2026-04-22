@@ -4,6 +4,7 @@ import {
 } from 'lucide-vue-next'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   shiftCompliancePercent: number
@@ -11,6 +12,8 @@ const props = defineProps<{
   idleTime: number
   breakTime: number
 }>()
+
+const auth = useAuthStore()
 
 const formatTime = (secs: number): string => {
   const h = Math.floor(secs / 3600)
@@ -51,10 +54,10 @@ const formatTime = (secs: number): string => {
         {
           l: 'Break',
           v: formatTime(breakTime),
-          c: breakTime > 1800 ? 'text-rose-500' : 'text-blue-400',
+          c: breakTime > (auth.user?.breakTargetSeconds || 1800) ? 'text-rose-500' : 'text-blue-400',
           i: Coffee,
-          sub: 'Total de descansos (Máx 30min)',
-          accent: breakTime > 1800 ? 'bg-rose-500' : 'bg-blue-600'
+          sub: `Total de descansos (Máx ${Math.floor((auth.user?.breakTargetSeconds || 1800) / 60)}min)`,
+          accent: breakTime > (auth.user?.breakTargetSeconds || 1800) ? 'bg-rose-500' : 'bg-blue-600'
         }
       ]" :key="k.l" class="border-border/50 hover:border-border transition-all duration-300 relative overflow-hidden group hover:-translate-y-0.5">
         <CardContent class="p-5">

@@ -5,6 +5,9 @@ import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ref, watch, computed } from 'vue'
 import { useTimezone } from '@/lib/useTimezone'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 interface DailySummary {
   todayActiveSeconds: number
@@ -68,7 +71,16 @@ const todayAccumulated = computed(() => {
     : previousShiftsSeconds
 })
 
-const targetSeconds = computed(() => props.dailySummary?.targetSeconds ?? 28800)
+const targetSeconds = computed(() => props.dailySummary?.targetSeconds ?? auth.user?.shiftTargetSeconds ?? 28800)
+
+const formatMetaLabel = (secs: number) => {
+  if (secs < 3600) {
+    return `${Math.floor(secs / 60)}m`
+  }
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
 const progressPercent = computed(() => Math.min((todayAccumulated.value / targetSeconds.value) * 100, 100))
 
 const hoursLabel = computed(() => {
@@ -187,7 +199,7 @@ const assignedEnd = computed(() => {
         <p class="text-[11px] font-black text-muted-foreground uppercase tracking-widest">Progreso Diario</p>
         <p class="text-sm font-black tabular-nums">
           {{ Math.floor(progressPercent) }}%
-          <span class="text-[10px] text-muted-foreground ml-1">Meta: {{ Math.floor(targetSeconds / 3600) }}h</span>
+          <span class="text-[10px] text-muted-foreground ml-1">Meta: {{ formatMetaLabel(targetSeconds) }}</span>
         </p>
       </div>
       <div class="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-900 overflow-hidden border border-border/10">

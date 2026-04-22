@@ -97,7 +97,14 @@ const userAllSchedules = ref<any[]>([])
 
 // --- Computed ---
 const isMarketing = computed(() => auth.user?.role === 'ROLE_MARKETING')
-const SHIFT_TARGET = computed(() => shiftTarget.value || auth.user?.shiftTargetSeconds || 28800)
+const SHIFT_TARGET = computed(() => {
+  // 1. Prioridad: Lo que diga el turno actual (si ya inició)
+  if (shiftTarget.value) return shiftTarget.value
+  // 2. Perfil del usuario (lo que configuró el admin)
+  if (auth.user?.shiftTargetSeconds) return auth.user.shiftTargetSeconds
+  // 3. Fallback absoluto (8h)
+  return 28800
+})
 const effectiveWorkSeconds = computed(() => Math.max(0, workTime.value - idleTime.value))
 const shiftCompliancePercent = computed(() =>
   Math.min(100, Math.round((effectiveWorkSeconds.value / SHIFT_TARGET.value) * 100))
@@ -132,6 +139,29 @@ const offDaysArray = computed(() => {
   return allDays.filter(day => !scheduledDays.includes(day)).map(day => dayTranslations[day])
 })
 
+const isWithinSchedule = computed(() => {
+  if (!userSchedule.value?.template) return true // Si no hay horario cargado, permitimos
+  const { startTime, endTime } = userSchedule.value.template
+  if (!startTime || !endTime) return true
+
+  const now = new Date()
+  const currentTz = userSchedule.value.timezone || auth.user?.timezone || 'America/Argentina/Buenos_Aires'
+  
+  // Convert current time to the configured timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: currentTz,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+  const parts = formatter.formatToParts(now)
+  const hour = parts.find(p => p.type === 'hour')?.value || '00'
+  const minute = parts.find(p => p.type === 'minute')?.value || '00'
+  const currentTimeStr = `${hour}:${minute}`
+
+  return currentTimeStr >= startTime.slice(0, 5) && currentTimeStr <= endTime.slice(0, 5)
+})
+
 // --- Fetch Templates ---
 async function fetchTemplates() {
   try {
@@ -148,6 +178,13 @@ async function fetchUserAllSchedules() {
     const res = await api.get(`/admin/users/schedule/user/${auth.user.id}`)
     userAllSchedules.value = res.data || []
   } catch (e) { console.error('Error fetching schedules:', e) }
+}
+
+async function fetchDailySummary() {
+  try {
+    const res = await api.get('/shifts/daily-summary')
+    dailySummary.value = res.data
+  } catch (e) { console.error('Error fetching daily summary:', e) }
 }
 let timerInterval: any = null
 let breakInterval: any = null
@@ -190,6 +227,13 @@ function startWorkTimer() {
 
 // --- Shift Actions ---
 async function startShift(isExtra = false) {
+  if (!isExtra && !isWithinSchedule.value) {
+    toast.error('Fuera de horario', { 
+      description: `Tu horario asignado es de ${userSchedule.value?.template?.startTime?.slice(0, 5)} a ${userSchedule.value?.template?.endTime?.slice(0, 5)}. Iniciá como "Horas Extras" si deseas trabajar ahora.`,
+      duration: 6000
+    })
+    return
+  }
   try {
     const endpoint = isExtra ? `${apiUrl}/shifts/start-extra` : `${apiUrl}/shifts/start`
     const body = {
@@ -291,6 +335,7 @@ async function submitEndShift(startExtras: boolean) {
     }
 
     resetState()
+    fetchDailySummary()
     window.electronAPI?.shift?.stopped()
     showReportModal.value = false
 
@@ -413,8 +458,10 @@ async function loadHandoff() {
 }
 
 onMounted(async () => {
+  auth.refreshUserProfile()
   fetchTemplates()
   fetchUserAllSchedules()
+  fetchDailySummary()
   // Initial data load
   try {
     const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })
