@@ -327,13 +327,13 @@ const globalStats = computed(() => {
                       <div class="grid grid-cols-2 gap-3">
                         <div class="p-3 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/50 border border-border/50">
                           <p class="text-[10px] font-bold text-muted-foreground uppercase mb-1">Inicio</p>
-                          <p class="text-sm font-black">{{ formatDateTime(shift.startTime).split(' ')[1] }}</p>
-                          <p class="text-[10px] text-muted-foreground font-medium">Fact. Inicial: {{ formatMoney(shift.initialEarnings || 0) }}</p>
+                          <p class="text-sm font-black">{{ formatHour(shift.startTime) }}</p>
+                          <p class="text-[10px] text-muted-foreground font-medium">{{ formatSimpleDate(shift.startTime) }} · Fact: {{ formatMoney(shift.initialEarnings || 0) }}</p>
                         </div>
                         <div class="p-3 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/50 border border-border/50">
                           <p class="text-[10px] font-bold text-muted-foreground uppercase mb-1">Fin</p>
-                          <p class="text-sm font-black">{{ formatDateTime(shift.endTime).split(' ')[1] }}</p>
-                          <p class="text-[10px] text-muted-foreground font-medium">App: {{ shift.activeApp || 'N/A' }}</p>
+                          <p class="text-sm font-black">{{ formatHour(shift.endTime) }}</p>
+                          <p class="text-[10px] text-muted-foreground font-medium">{{ formatSimpleDate(shift.endTime) }} · Duración: {{ formatDuration(shift.startTime, shift.endTime) }}</p>
                         </div>
                       </div>
                     </div>

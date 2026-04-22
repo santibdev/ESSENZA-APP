@@ -106,19 +106,28 @@ const SHIFT_TARGET = computed(() => {
   return 28800
 })
 const effectiveWorkSeconds = computed(() => Math.max(0, workTime.value - idleTime.value))
-const shiftCompliancePercent = computed(() =>
-  Math.min(100, Math.round((effectiveWorkSeconds.value / SHIFT_TARGET.value) * 100))
-)
+const totalTodayAccumulated = computed(() => {
+  const previousSeconds = dailySummary.value?.todayActiveSeconds || 0
+  return previousSeconds + effectiveWorkSeconds.value
+})
+
 const missingShiftSeconds = computed(() => {
   if (isExtraHours.value) return 0
-  return Math.max(0, SHIFT_TARGET.value - effectiveWorkSeconds.value)
+  return Math.max(0, SHIFT_TARGET.value - totalTodayAccumulated.value)
 })
+
+const shiftCompliancePercent = computed(() =>
+  Math.min(100, Math.round((totalTodayAccumulated.value / SHIFT_TARGET.value) * 100))
+)
 const statusLabel = computed(() => {
   if (!isWorking.value) return 'Offline'
-  if (isPaused.value) return 'En Break'
-  if (isAfk.value) return 'AFK'
-  return 'Activo'
+  if (isPaused.value) return 'En Pausa'
+  if (isExtraHours.value) return 'Horas Extras'
+  return 'En Turno'
 })
+
+const hasHoursDebt = computed(() => (dailySummary.value?.todayActiveSeconds || 0) < SHIFT_TARGET.value)
+const debtMinutes = computed(() => Math.max(0, Math.floor((SHIFT_TARGET.value - (dailySummary.value?.todayActiveSeconds || 0)) / 60)))
 const statusColor = computed(() => {
   if (!isWorking.value) return 'bg-zinc-500'
   if (isPaused.value) return 'bg-amber-500'
@@ -186,6 +195,13 @@ async function fetchDailySummary() {
     dailySummary.value = res.data
   } catch (e) { console.error('Error fetching daily summary:', e) }
 }
+
+const formatMetaLabel = (secs: number) => {
+  if (secs < 3600) return `${Math.floor(secs / 60)}m`
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
 let timerInterval: any = null
 let breakInterval: any = null
 let pollingInterval: any = null
@@ -227,13 +243,24 @@ function startWorkTimer() {
 
 // --- Shift Actions ---
 async function startShift(isExtra = false) {
+  // Regla: Si está fuera de horario, solo permitimos inicio regular si todavía debe horas del día (deuda).
+  // Si ya cumplió su meta, debe entrar obligatoriamente como Horas Extras.
   if (!isExtra && !isWithinSchedule.value) {
-    toast.error('Fuera de horario', { 
-      description: `Tu horario asignado es de ${userSchedule.value?.template?.startTime?.slice(0, 5)} a ${userSchedule.value?.template?.endTime?.slice(0, 5)}. Iniciá como "Horas Extras" si deseas trabajar ahora.`,
-      duration: 6000
-    })
-    return
+    if (!hasHoursDebt.value) {
+      toast.error('Jornada Completada', { 
+        description: `Ya cumpliste tu meta de ${formatMetaLabel(SHIFT_TARGET.value)}. Para seguir trabajando fuera de tu horario (${userSchedule.value?.template?.startTime?.slice(0, 5)} - ${userSchedule.value?.template?.endTime?.slice(0, 5)}), debés iniciar como "Horas Extras".`,
+        duration: 8000
+      })
+      return
+    } else {
+      // Tiene deuda, le avisamos que está "pagando" horas fuera de término
+      toast.info('Completando Jornada', {
+        description: `Estás fuera de tu horario asignado, pero se te permite iniciar para completar tus ${debtMinutes.value} min restantes de hoy.`,
+        duration: 5000
+      })
+    }
   }
+  
   try {
     const endpoint = isExtra ? `${apiUrl}/shifts/start-extra` : `${apiUrl}/shifts/start`
     const body = {
@@ -379,20 +406,30 @@ function startSync() {
   runner()
 }
 
+async function captureAndUpload() {
+  if (!isWorking.value || !currentShiftId.value || isCapturing) return
+  isCapturing = true
+  try {
+    if (window.electronAPI?.screen) {
+      const screensRaw = await window.electronAPI.screen.takeScreenshot()
+      if (screensRaw?.length > 0) {
+        await fetch(`${apiUrl}/shifts/${currentShiftId.value}/upload-screenshot`, { 
+          method: 'POST', 
+          headers: authHeaders(), 
+          body: JSON.stringify({ image: JSON.stringify(screensRaw.map((s: any) => s.image)) }) 
+        })
+      }
+    }
+  } catch (err) { console.error('Capture error:', err) }
+  finally { isCapturing = false }
+}
+
 function startAutoScreenshot() {
   if (autoScreenshotInterval) clearTimeout(autoScreenshotInterval)
   const runner = async () => {
-    if (!isWorking.value || isPaused.value || !currentShiftId.value || isCapturing) return
-    isCapturing = true
-    try {
-      if (window.electronAPI?.screen) {
-        const screensRaw = await window.electronAPI.screen.takeScreenshot()
-        if (screensRaw?.length > 0) {
-          await fetch(`${apiUrl}/shifts/${currentShiftId.value}/upload-screenshot`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ image: JSON.stringify(screensRaw.map((s: any) => s.image)) }) })
-        }
-      }
-    } catch (err) { }
-    finally { isCapturing = false; if (isWorking.value && !isPaused.value) autoScreenshotInterval = setTimeout(runner, 6 * 60 * 1000) }
+    if (!isWorking.value || isPaused.value) return
+    await captureAndUpload()
+    if (isWorking.value && !isPaused.value) autoScreenshotInterval = setTimeout(runner, 6 * 60 * 1000)
   }
   setTimeout(runner, 1000)
 }
@@ -404,11 +441,20 @@ function startPolling() {
     isPolling = true
     try {
       const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })
+      if (res.status === 204) return // No active shift
       const data = await res.json()
+      
+      // 1. Mensajes pendientes
       if (data?.pendingMessage) {
         toast.info('Mensaje de Administración', { description: data.pendingMessage, duration: 10000 })
         window.electronAPI?.sendNotification?.({ title: 'Notificación', body: data.pendingMessage })
         fetch(`${apiUrl}/shifts/${currentShiftId.value}/clear-message`, { method: 'POST', headers: authHeaders() }).catch(console.error)
+      }
+
+      // 2. Captura manual solicitada por Admin
+      if (data?.screenshotRequested) {
+        console.log('📸 Screenshot requested by admin, capturing...')
+        captureAndUpload()
       }
     } catch (err) { }
     finally { isPolling = false; if (isWorking.value) pollingInterval = setTimeout(runner, 10000) }
@@ -536,7 +582,7 @@ onUnmounted(() => {
                 <TrackerCard :effective-work-seconds="effectiveWorkSeconds" :is-working="isWorking"
                   :is-paused="isPaused" :status-label="statusLabel" :status-dot="statusDot"
                   :shift-start-time="shiftStartTime ?? undefined" :daily-summary="dailySummary ?? undefined"
-                  :schedule-info="userSchedule ?? undefined" @toggle-break="toggleBreak"
+                  :schedule-info="userSchedule ?? undefined" :is-within-schedule="isWithinSchedule" @toggle-break="toggleBreak"
                   @start-shift="isExtraHoursSelection = $event; showStartModal = true" @end-shift="endShiftPrompt" />
 
                 <!-- Modular Notes/Observations Card -->
@@ -557,7 +603,7 @@ onUnmounted(() => {
                   <h2 class="text-lg font-bold text-foreground">Historial de Relevo</h2>
                   <p class="text-sm text-muted-foreground mt-1">Información de turnos anteriores por modelo asignado.</p>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="flex flex-col gap-4 pb-4">
                   <ModelHandoffCard v-for="m in assignedModels" :key="m.id" :model="{ name: m.name, alias: m.alias }" :entries="handoffData[m.id] || []" />
                 </div>
               </div>

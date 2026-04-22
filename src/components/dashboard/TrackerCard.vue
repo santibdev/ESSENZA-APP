@@ -37,6 +37,7 @@ const props = defineProps<{
   shiftStartTime?: string
   dailySummary?: DailySummary
   scheduleInfo?: ScheduleInfo
+  isWithinSchedule: boolean
 }>()
 
 const emit = defineEmits<{
@@ -232,8 +233,24 @@ const assignedEnd = computed(() => {
 
             Horas extras
           </Button>
-          <Button size="sm" class="h-9 px-6 tracking-wide" @click="emit('startShift', false)">
-            {{ (dailySummary?.todayShiftCount ?? 0) > 0 ? 'Continuar jornada' : 'Iniciar turno' }}
+          <Button 
+            size="sm" 
+            class="h-9 px-6 tracking-wide" 
+            @click="emit('startShift', false)"
+            :disabled="remainingSeconds === 0 && !isWithinSchedule"
+          >
+            <template v-if="(dailySummary?.todayShiftCount ?? 0) === 0">
+              Iniciar turno
+            </template>
+            <template v-else-if="remainingSeconds > 0">
+              Continuar jornada
+            </template>
+            <template v-else-if="!isWithinSchedule">
+              Jornada completada
+            </template>
+            <template v-else>
+              Continuar trabajando
+            </template>
           </Button>
         </div>
       </template>
