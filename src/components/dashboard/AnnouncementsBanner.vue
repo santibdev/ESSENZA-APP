@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Megaphone, X, Bell, AlertTriangle } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
+import api from '@/api'
 
 const auth = useAuthStore()
 const announcements = ref<any[]>([])
@@ -10,12 +11,8 @@ const loading = ref(true)
 
 const fetchAnnouncements = async () => {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://essenza-core-production.up.railway.app/v1/api'}/announcements`, {
-      headers: { 'Authorization': `Bearer ${auth.user?.token}` }
-    })
-    if (res.ok) {
-      announcements.value = await res.json()
-    }
+    const res = await api.get('/announcements')
+    announcements.value = res.data
   } catch (err) {
     console.error('Failed to fetch announcements', err)
   } finally {
@@ -26,7 +23,7 @@ const fetchAnnouncements = async () => {
 let interval: any = null
 onMounted(() => {
   fetchAnnouncements()
-  interval = setInterval(fetchAnnouncements, 60000) // Poll every 1m
+  interval = setInterval(fetchAnnouncements, 300000) // Poll every 5m to avoid overhead
 })
 onUnmounted(() => clearInterval(interval))
 

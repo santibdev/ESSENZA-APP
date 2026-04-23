@@ -50,7 +50,9 @@ export const useAuthStore = defineStore('auth', () => {
         mustChangePassword: data.mustChangePassword,
         timezone: data.timezone || 'America/Argentina/Buenos_Aires',
         shiftTargetSeconds: data.shiftTargetSeconds,
-        breakTargetSeconds: data.breakTargetSeconds
+        breakTargetSeconds: data.breakTargetSeconds,
+        profilePictureUrl: data.profilePictureUrl,
+        profilePictureBase64: data.profilePictureBase64
       }
       
       if (data.mustChangePassword) {
@@ -84,7 +86,9 @@ export const useAuthStore = defineStore('auth', () => {
           shiftTargetSeconds: data.shiftTargetSeconds,
           breakTargetSeconds: data.breakTargetSeconds,
           name: data.name,
-          timezone: data.timezone || user.value.timezone
+          timezone: data.timezone || user.value.timezone,
+          profilePictureUrl: data.profilePictureUrl,
+          profilePictureBase64: data.profilePictureBase64
         }
         localStorage.setItem('user', JSON.stringify(user.value))
       }

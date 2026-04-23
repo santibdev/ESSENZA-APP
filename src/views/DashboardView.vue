@@ -31,6 +31,7 @@ import CreativityWall from '@/components/dashboard/CreativityWall.vue'
 import LeadsKanban from '@/components/dashboard/LeadsKanban.vue'
 import UserShiftHistory from '@/components/dashboard/UserShiftHistory.vue'
 import ModelReportsSection from '@/components/dashboard/ModelReportsSection.vue'
+import ModelKnowledgeBase from '@/components/dashboard/ModelKnowledgeBase.vue'
 
 // Types
 interface AssignedModel { id: number; name: string; alias?: string }
@@ -598,14 +599,14 @@ onUnmounted(() => {
 
             <!-- Case: CONTEXT / BITACORA -->
             <template v-else-if="activeTab === 'context'">
-              <div v-if="assignedModels.length > 0" class="space-y-6">
-                <div>
-                  <h2 class="text-lg font-bold text-foreground">Historial de Relevo</h2>
-                  <p class="text-sm text-muted-foreground mt-1">Información de turnos anteriores por modelo asignado.</p>
+              <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-2xl font-black text-foreground tracking-tight uppercase">Base de Conocimiento</h2>
+                    <p class="text-sm text-muted-foreground mt-1">Toda la información necesaria para tus modelos asignadas.</p>
+                  </div>
                 </div>
-                <div class="flex flex-col gap-4 pb-4">
-                  <ModelHandoffCard v-for="m in assignedModels" :key="m.id" :model="{ name: m.name, alias: m.alias }" :entries="handoffData[m.id] || []" />
-                </div>
+                <ModelKnowledgeBase :assigned-models="assignedModels" />
               </div>
             </template>
 
