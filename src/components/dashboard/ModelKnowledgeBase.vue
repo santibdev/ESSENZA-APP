@@ -40,11 +40,20 @@ async function fetchModels() {
     })
     if (res.ok) {
       const data = await res.json()
-      // Filter models to show only assigned ones if desired, or all active ones
-      // For chatters, maybe better to show all active ones so they have context?
-      // User said "que le aparezca algo asi a los chatters", so I'll show all active models.
-      models.value = data
-      if (models.value.length > 0) selectedModel.value = models.value[0]
+      
+      // Filtrar solo las modelos que el chatter tiene asignadas según la prop
+      if (props.assignedModels && props.assignedModels.length > 0) {
+        const assignedIds = props.assignedModels.map(m => m.id)
+        models.value = data.filter((m: any) => assignedIds.includes(m.id))
+      } else {
+        models.value = []
+      }
+      
+      if (models.value.length > 0) {
+        selectedModel.value = models.value[0]
+      } else {
+        selectedModel.value = null
+      }
     }
   } catch (err) {
     console.error('Error fetching models:', err)
@@ -91,7 +100,7 @@ function getAvatarColor(name: string) {
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row h-[calc(100vh-12rem)] overflow-hidden bg-background rounded-xl border border-border shadow-sm">
+  <div class="flex flex-col lg:flex-row min-h-[600px] bg-background rounded-3xl border border-border/50 shadow-2xl overflow-hidden">
     <!-- Sidebar: Model List -->
     <aside class="w-full lg:w-72 shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-muted/20 flex flex-col">
       <div class="p-4 border-b border-border flex items-center justify-between">
@@ -412,13 +421,21 @@ function getAvatarColor(name: string) {
     </main>
 
     <!-- Empty State -->
-    <div v-else class="flex-1 flex flex-col items-center justify-center gap-4 text-center">
-       <div class="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center animate-pulse">
-         <User class="w-8 h-8 text-muted-foreground/20" />
+    <div v-else class="flex-1 flex flex-col items-center justify-center p-12 text-center bg-muted/5">
+       <div class="w-24 h-24 rounded-[2.5rem] bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-6 shadow-inner">
+         <ShieldAlert class="w-10 h-10 text-zinc-400" />
        </div>
-       <div class="space-y-1">
-         <p class="text-lg font-black tracking-tight">Cargando Modelos...</p>
-         <p class="text-sm text-muted-foreground">Preparando el arsenal de información.</p>
+       <div class="max-w-md space-y-3">
+         <h3 class="text-2xl font-black tracking-tight text-foreground uppercase">Sin Modelos Asignadas</h3>
+         <p class="text-sm text-muted-foreground leading-relaxed">
+           No tienes modelos vinculadas a tu perfil en este momento. 
+           Por favor, contacta con tu <span class="text-primary font-bold">Manager</span> para que se te asigne el portfolio correspondiente.
+         </p>
+         <div class="pt-6">
+            <Button variant="outline" class="rounded-full font-bold px-8" @click="fetchModels">
+              Reintentar Sincronización
+            </Button>
+         </div>
        </div>
     </div>
   </div>

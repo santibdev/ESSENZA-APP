@@ -568,7 +568,7 @@ onUnmounted(() => {
             <rect width="100%" height="100%" fill="url(#dashboard-grid)" class="text-foreground" />
           </svg>
           
-          <div class="max-w-[1400px] mx-auto p-4 lg:p-8 space-y-8 relative z-10 transition-all min-h-full">
+          <div :class="[activeTab === 'context' ? 'max-w-none' : 'max-w-[1400px]', 'mx-auto p-4 lg:p-8 space-y-8 relative z-10 transition-all min-h-full']">
 
             <AnnouncementsBanner />
 
@@ -599,14 +599,16 @@ onUnmounted(() => {
 
             <!-- Case: CONTEXT / BITACORA -->
             <template v-else-if="activeTab === 'context'">
-              <div class="space-y-6">
-                <div class="flex items-center justify-between">
+              <div class="space-y-6 -mt-4 lg:-mt-8">
+                <div class="flex items-center justify-between px-2">
                   <div>
-                    <h2 class="text-2xl font-black text-foreground tracking-tight uppercase">Base de Conocimiento</h2>
-                    <p class="text-sm text-muted-foreground mt-1">Toda la información necesaria para tus modelos asignadas.</p>
+                    <h2 class="text-3xl font-black text-foreground tracking-tight uppercase">Base de Conocimiento</h2>
+                    <p class="text-sm text-muted-foreground mt-1 font-medium">Toda la información necesaria para tus modelos asignadas.</p>
                   </div>
                 </div>
-                <ModelKnowledgeBase :assigned-models="assignedModels" />
+                <div class="w-full">
+                   <ModelKnowledgeBase :assigned-models="assignedModels" />
+                </div>
               </div>
             </template>
 
