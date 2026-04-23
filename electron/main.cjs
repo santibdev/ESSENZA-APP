@@ -55,9 +55,14 @@ let isShiftActive = false
 let shiftTimerSeconds = 0
 let shiftTimerInterval = null
 
+// Helper to get asset path (public in dev, dist in prod)
+function getAssetPath(filename) {
+  return path.join(__dirname, isDev ? '../public' : '../dist', filename)
+}
+
 // Build tray icon using Essenza logo
 function buildTrayIcon() {
-  const iconPath = path.join(__dirname, '../public/essenza.ico')
+  const iconPath = getAssetPath('essenza.ico')
   let icon = nativeImage.createFromPath(iconPath)
   
   // Resize to proper tray size
@@ -145,7 +150,7 @@ function createWindow() {
     minHeight: 600,
     frame: false,
     backgroundColor: '#08080f',
-    icon: path.join(__dirname, '../public/essenza.ico'),
+    icon: getAssetPath('essenza.ico'),
     webPreferences: {
       backgroundThrottling: false,
       preload: path.join(__dirname, 'preload.cjs'),
@@ -211,7 +216,7 @@ ipcMain.on('notification:send', (_e, { title, body, silent }) => {
     title, 
     body, 
     silent: silent ?? false,
-    icon: path.join(__dirname, '../public/icon.png')
+    icon: getAssetPath('icon.png')
   }).show()
 })
 
