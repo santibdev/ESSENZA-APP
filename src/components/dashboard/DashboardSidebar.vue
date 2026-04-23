@@ -126,7 +126,7 @@ function selectTab(id: TabType) {
       <div class="mx-5 h-px bg-zinc-100 dark:bg-zinc-800" />
 
       <!-- Footer User + Buttons (Diseño Premium unificado) -->
-      <div class="p-4 pb-16 space-y-3 shrink-0">
+      <div class="p-4 pb-6 space-y-3 shrink-0">
         <!-- User Profile (El diseño que te gustó) -->
         <div
           class="flex items-center gap-3 px-3 py-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800/40 relative group/user">

@@ -156,7 +156,7 @@ const isWithinSchedule = computed(() => {
 
   const now = new Date()
   const currentTz = userSchedule.value.timezone || auth.user?.timezone || 'America/Argentina/Buenos_Aires'
-  
+
   // Convert current time to the configured timezone
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: currentTz,
@@ -248,7 +248,7 @@ async function startShift(isExtra = false) {
   // Si ya cumplió su meta, debe entrar obligatoriamente como Horas Extras.
   if (!isExtra && !isWithinSchedule.value) {
     if (!hasHoursDebt.value) {
-      toast.error('Jornada Completada', { 
+      toast.error('Jornada Completada', {
         description: `Ya cumpliste tu meta de ${formatMetaLabel(SHIFT_TARGET.value)}. Para seguir trabajando fuera de tu horario (${userSchedule.value?.template?.startTime?.slice(0, 5)} - ${userSchedule.value?.template?.endTime?.slice(0, 5)}), debés iniciar como "Horas Extras".`,
         duration: 8000
       })
@@ -261,7 +261,7 @@ async function startShift(isExtra = false) {
       })
     }
   }
-  
+
   try {
     const endpoint = isExtra ? `${apiUrl}/shifts/start-extra` : `${apiUrl}/shifts/start`
     const body = {
@@ -414,10 +414,10 @@ async function captureAndUpload() {
     if (window.electronAPI?.screen) {
       const screensRaw = await window.electronAPI.screen.takeScreenshot()
       if (screensRaw?.length > 0) {
-        await fetch(`${apiUrl}/shifts/${currentShiftId.value}/upload-screenshot`, { 
-          method: 'POST', 
-          headers: authHeaders(), 
-          body: JSON.stringify({ image: JSON.stringify(screensRaw.map((s: any) => s.image)) }) 
+        await fetch(`${apiUrl}/shifts/${currentShiftId.value}/upload-screenshot`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ image: JSON.stringify(screensRaw.map((s: any) => s.image)) })
         })
       }
     }
@@ -444,7 +444,7 @@ function startPolling() {
       const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })
       if (res.status === 204) return // No active shift
       const data = await res.json()
-      
+
       // 1. Mensajes pendientes
       if (data?.pendingMessage) {
         toast.info('Mensaje de Administración', { description: data.pendingMessage, duration: 10000 })
@@ -541,12 +541,11 @@ onUnmounted(() => {
 
 <template>
   <TooltipProvider :delay-duration="300">
-    <div class="h-full flex bg-white dark:bg-zinc-900 text-foreground overflow-hidden font-sans select-none">
+    <div class="h-full flex bg-background text-foreground overflow-hidden font-sans select-none">
 
       <!-- Modular Sidebar -->
       <DashboardSidebar v-model:activeTab="activeTab" v-model:open="sidebarOpen" :is-marketing="isMarketing"
-        :off-days="offDaysArray"
-        @logout="auth.logout(); router.push({ name: 'login' })" />
+        :off-days="offDaysArray" @logout="auth.logout(); router.push({ name: 'login' })" />
 
       <main class="flex-1 flex flex-col min-w-0 relative overflow-hidden transition-colors duration-300 ">
 
@@ -555,11 +554,11 @@ onUnmounted(() => {
           :status-color="statusColor" :shift-target="missingShiftSeconds" @toggle-sidebar="sidebarOpen = !sidebarOpen"
           @start-shift="isExtraHoursSelection = $event; showStartModal = true" @toggle-break="toggleBreak"
           @end-shift="endShiftPrompt" />
-
         <div
-          class="flex-1 overflow-y-auto bg-zinc-50 dark:bg-zinc-950 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700 relative">
+          class="flex-1 overflow-y-auto bg-muted/30 dark:bg-zinc-950 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700 relative">
           <!-- Textura de grilla sutil -->
-          <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-[0.03]" viewBox="0 0 400 400" preserveAspectRatio="none">
+          <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-[0.03]" viewBox="0 0 400 400"
+            preserveAspectRatio="none">
             <defs>
               <pattern id="dashboard-grid" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" stroke-width="0.4" />
@@ -567,9 +566,9 @@ onUnmounted(() => {
             </defs>
             <rect width="100%" height="100%" fill="url(#dashboard-grid)" class="text-foreground" />
           </svg>
-          
-          <div :class="[activeTab === 'context' ? 'max-w-none' : 'max-w-[1400px]', 'mx-auto p-4 lg:p-8 space-y-8 relative z-10 transition-all min-h-full']">
 
+          <div
+            :class="[activeTab === 'context' ? 'max-w-none pb-4 lg:pb-8 !p-0' : 'max-w-[1400px]', 'mx-auto p-4 lg:p-8 space-y-8 relative z-10 transition-all min-h-full']">
             <AnnouncementsBanner />
 
             <!-- Case: TRACKER -->
@@ -583,8 +582,9 @@ onUnmounted(() => {
                 <TrackerCard :effective-work-seconds="effectiveWorkSeconds" :is-working="isWorking"
                   :is-paused="isPaused" :status-label="statusLabel" :status-dot="statusDot"
                   :shift-start-time="shiftStartTime ?? undefined" :daily-summary="dailySummary ?? undefined"
-                  :schedule-info="userSchedule ?? undefined" :is-within-schedule="isWithinSchedule" @toggle-break="toggleBreak"
-                  @start-shift="isExtraHoursSelection = $event; showStartModal = true" @end-shift="endShiftPrompt" />
+                  :schedule-info="userSchedule ?? undefined" :is-within-schedule="isWithinSchedule"
+                  @toggle-break="toggleBreak" @start-shift="isExtraHoursSelection = $event; showStartModal = true"
+                  @end-shift="endShiftPrompt" />
 
                 <!-- Modular Notes/Observations Card -->
                 <NotesCard v-model="observations" />
@@ -599,16 +599,8 @@ onUnmounted(() => {
 
             <!-- Case: CONTEXT / BITACORA -->
             <template v-else-if="activeTab === 'context'">
-              <div class="space-y-6 -mt-4 lg:-mt-8">
-                <div class="flex items-center justify-between px-2">
-                  <div>
-                    <h2 class="text-3xl font-black text-foreground tracking-tight uppercase">Base de Conocimiento</h2>
-                    <p class="text-sm text-muted-foreground mt-1 font-medium">Toda la información necesaria para tus modelos asignadas.</p>
-                  </div>
-                </div>
-                <div class="w-full">
-                   <ModelKnowledgeBase :assigned-models="assignedModels" />
-                </div>
+              <div class="w-full">
+                <ModelKnowledgeBase :assigned-models="assignedModels" />
               </div>
             </template>
 
