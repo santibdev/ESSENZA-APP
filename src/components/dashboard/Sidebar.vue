@@ -62,7 +62,7 @@ const navItems = computed(() => {
     <div class="px-3 pb-3 pt-2 border-t border-zinc-800/50 space-y-2">
       <div class="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-800/30 border border-zinc-800/50">
         <Avatar class="w-9 h-9 rounded-lg border-2 border-zinc-700/50 shrink-0 overflow-hidden">
-          <AvatarImage :src="auth.user?.profilePictureBase64" class="object-cover" />
+          <AvatarImage :src="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64" class="object-cover" />
           <AvatarFallback class="bg-emerald-500/20 text-emerald-400 text-xs font-black">
             {{ auth.user?.name?.charAt(0) }}
           </AvatarFallback>

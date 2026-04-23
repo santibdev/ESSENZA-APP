@@ -130,8 +130,9 @@ function selectTab(id: TabType) {
         <!-- User Profile (El diseño que te gustó) -->
         <div
           class="flex items-center gap-3 px-3 py-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800/40 relative group/user">
-          <span class="w-10 h-10 rounded-lg bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 shadow-sm transition-transform duration-300 group-hover/user:scale-105">
-            <img v-if="auth.user?.profilePictureBase64" :src="auth.user?.profilePictureBase64"
+          <span class="w-10 h-10 rounded-lg bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 shadow-sm transition-transform duration-300 group-hover/user:scale-105 flex items-center justify-center">
+            <img v-if="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64" 
+              :src="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64"
               class="w-full h-full object-cover" />
             <span v-else
               class="text-xs font-black flex items-center justify-center h-full text-zinc-600 dark:text-zinc-400">

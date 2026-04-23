@@ -82,8 +82,13 @@ async function saveTimezone() {
       <!-- Header -->
       <SheetHeader class="px-6 pt-6 pb-4 border-b border-border">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-            <User class="w-5 h-5 text-primary" />
+          <div class="w-10 h-10 rounded-full overflow-hidden border border-border shrink-0">
+            <img v-if="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64" 
+              :src="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64"
+              class="w-full h-full object-cover" />
+            <div v-else class="w-full h-full bg-primary/10 flex items-center justify-center">
+              <User class="w-5 h-5 text-primary" />
+            </div>
           </div>
           <div>
             <SheetTitle class="text-base leading-none">{{ auth.user?.name }}</SheetTitle>
