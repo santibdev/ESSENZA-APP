@@ -303,12 +303,12 @@ function getAvatarColor(name: string) {
                         <div class="p-4 bg-muted/30 rounded-xl space-y-1">
                           <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Rutina</p>
                           <p class="text-xs font-bold text-foreground leading-relaxed">{{ selectedModel.routine || '---'
-                            }}</p>
+                          }}</p>
                         </div>
                         <div class="p-4 bg-muted/30 rounded-xl space-y-1">
                           <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Estudios</p>
                           <p class="text-xs font-bold text-foreground leading-relaxed">{{ selectedModel.studies || '---'
-                            }}</p>
+                          }}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -348,8 +348,7 @@ function getAvatarColor(name: string) {
                         <ShieldAlert class="w-4 h-4" />
                         <p class="text-[10px] font-black uppercase tracking-widest">RED FLAGS</p>
                       </div>
-                      <p class="text-xs font-bold text-rose-600/90 leading-relaxed">{{ selectedModel.hates || 'Sin
-                        datos.' }}</p>
+                      <p class="text-xs font-bold text-rose-600/90 leading-relaxed">{{ selectedModel.hates || 'Sin datos.' }}</p>
                     </div>
 
                     <!-- Special Notes -->
@@ -532,7 +531,7 @@ function getAvatarColor(name: string) {
                             <p class="text-xs font-bold truncate leading-tight text-foreground">{{ sp.name || '---' }}
                             </p>
                             <p class="text-[10px] text-muted-foreground font-medium truncate">@{{ sp.username || '---'
-                              }}</p>
+                            }}</p>
                           </div>
                         </div>
                         <div class="flex items-center gap-6 shrink-0">
@@ -541,7 +540,7 @@ function getAvatarColor(name: string) {
                               Apariciones</p>
                             <Badge variant="secondary"
                               class="text-[10px] font-bold py-0 h-5 border-none bg-muted/60 text-foreground">{{
-                              sp.appearances }}×</Badge>
+                                sp.appearances }}×</Badge>
                           </div>
                         </div>
                       </div>
