@@ -55,7 +55,7 @@ interface ModelReport {
 
 const auth = useAuthStore()
 const router = useRouter()
-const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://service-production-1ef2.up.railway.app/api/v1'
 
 // --- State ---
 const isWorking = ref(false)

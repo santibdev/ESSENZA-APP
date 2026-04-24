@@ -30,7 +30,7 @@ const spenders = ref<any[]>([])
 const logbookEntries = ref<any[]>([])
 const loadingAnalytics = ref(false)
 
-const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://service-production-1ef2.up.railway.app/api/v1'
 
 async function fetchModels() {
   loading.value = true
@@ -131,12 +131,12 @@ function getAvatarColor(name: string) {
               : 'hover:bg-muted text-foreground'">
 
             <Avatar class="h-9 w-9 shrink-0 shadow-sm border border-white/10">
-              <AvatarImage v-if="model.profilePictureUrl" :src="model.profilePictureUrl" :alt="model.name" class="object-cover" />
-              <AvatarFallback 
-                :class="[
-                  getAvatarColor(model.name),
-                  'w-full h-full flex items-center justify-center rounded-full text-white text-sm font-bold shadow-inner'
-                ]">
+              <AvatarImage v-if="model.profilePictureUrl" :src="model.profilePictureUrl" :alt="model.name"
+                class="object-cover" />
+              <AvatarFallback :class="[
+                getAvatarColor(model.name),
+                'w-full h-full flex items-center justify-center rounded-full text-white text-sm font-bold shadow-inner'
+              ]">
                 {{ model.name.charAt(0) }}
               </AvatarFallback>
             </Avatar>
@@ -159,12 +159,12 @@ function getAvatarColor(name: string) {
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div class="flex items-center gap-5">
             <Avatar class="h-20 w-20 ring-4 ring-background shadow-xl border border-border/50">
-              <AvatarImage v-if="selectedModel.profilePictureUrl" :src="selectedModel.profilePictureUrl" :alt="selectedModel.name" class="object-cover" />
-              <AvatarFallback 
-                :class="[
-                  getAvatarColor(selectedModel.name), 
-                  'w-full h-full flex items-center justify-center rounded-full text-white text-3xl font-bold shadow-inner'
-                ]">
+              <AvatarImage v-if="selectedModel.profilePictureUrl" :src="selectedModel.profilePictureUrl"
+                :alt="selectedModel.name" class="object-cover" />
+              <AvatarFallback :class="[
+                getAvatarColor(selectedModel.name),
+                'w-full h-full flex items-center justify-center rounded-full text-white text-3xl font-bold shadow-inner'
+              ]">
                 {{ selectedModel.name.charAt(0) }}
               </AvatarFallback>
             </Avatar>
@@ -196,7 +196,8 @@ function getAvatarColor(name: string) {
               <Card class="border-border/50 relative overflow-hidden group shadow-none">
                 <CardContent class="p-5">
                   <div class="flex items-start justify-between mb-3">
-                    <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Spenders Totales</p>
+                    <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Spenders Totales
+                    </p>
                     <div class="w-9 h-9 rounded-full bg-amber-500/10 flex items-center justify-center">
                       <Crown class="w-4 h-4 text-amber-600" />
                     </div>
@@ -237,11 +238,20 @@ function getAvatarColor(name: string) {
 
             <Tabs default-value="bio" class="space-y-6">
               <TabsList class="w-full justify-start h-14 p-1 bg-muted/30 rounded-xl border border-border/50">
-                <TabsTrigger value="bio" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">Bio & Personaje</TabsTrigger>
-                <TabsTrigger value="body" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">Atributos</TabsTrigger>
-                <TabsTrigger value="sop" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">SOP & Ventas</TabsTrigger>
-                <TabsTrigger value="spenders" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">Compradores</TabsTrigger>
-                <TabsTrigger value="history" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center gap-2">
+                <TabsTrigger value="bio"
+                  class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  Bio & Personaje</TabsTrigger>
+                <TabsTrigger value="body"
+                  class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  Atributos</TabsTrigger>
+                <TabsTrigger value="sop"
+                  class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  SOP & Ventas</TabsTrigger>
+                <TabsTrigger value="spenders"
+                  class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  Compradores</TabsTrigger>
+                <TabsTrigger value="history"
+                  class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center gap-2">
                   <MessageSquare class="w-3.5 h-3.5" /> Bitácora
                 </TabsTrigger>
               </TabsList>
@@ -252,7 +262,8 @@ function getAvatarColor(name: string) {
                   <!-- Column 1: Datos Personales -->
                   <Card class="xl:col-span-4 border-border/50 shadow-none bg-background">
                     <CardHeader class="pb-4">
-                      <CardTitle class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                      <CardTitle
+                        class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
                         <User class="w-4 h-4" /> Datos personales
                       </CardTitle>
                     </CardHeader>
@@ -266,7 +277,8 @@ function getAvatarColor(name: string) {
                         { label: 'Hijos', value: selectedModel.hasChildren ? 'Sí' : 'No' },
                         { label: 'Mascotas', value: selectedModel.pets || '---' },
                         { label: 'Coche', value: selectedModel.car || '---' },
-                      ]" :key="i" class="flex justify-between items-center py-3 border-b border-border/40 last:border-0">
+                      ]" :key="i"
+                        class="flex justify-between items-center py-3 border-b border-border/40 last:border-0">
                         <span class="text-xs text-muted-foreground font-medium">{{ item.label }}</span>
                         <span class="text-xs font-bold text-foreground text-right">{{ item.value }}</span>
                       </div>
@@ -276,7 +288,8 @@ function getAvatarColor(name: string) {
                   <!-- Column 2: Historia de marca -->
                   <Card class="xl:col-span-4 border-border/50 shadow-none bg-background">
                     <CardHeader class="pb-4">
-                      <CardTitle class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                      <CardTitle
+                        class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
                         <BookOpen class="w-4 h-4" /> Historia de marca
                       </CardTitle>
                     </CardHeader>
@@ -289,11 +302,13 @@ function getAvatarColor(name: string) {
                       <div class="space-y-4">
                         <div class="p-4 bg-muted/30 rounded-xl space-y-1">
                           <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Rutina</p>
-                          <p class="text-xs font-bold text-foreground leading-relaxed">{{ selectedModel.routine || '---' }}</p>
+                          <p class="text-xs font-bold text-foreground leading-relaxed">{{ selectedModel.routine || '---'
+                            }}</p>
                         </div>
                         <div class="p-4 bg-muted/30 rounded-xl space-y-1">
                           <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Estudios</p>
-                          <p class="text-xs font-bold text-foreground leading-relaxed">{{ selectedModel.studies || '---' }}</p>
+                          <p class="text-xs font-bold text-foreground leading-relaxed">{{ selectedModel.studies || '---'
+                            }}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -304,7 +319,8 @@ function getAvatarColor(name: string) {
                     <!-- Gustos & Vicios -->
                     <Card class="border-border/50 shadow-none bg-background">
                       <CardHeader class="pb-4">
-                        <CardTitle class="text-sm font-black uppercase tracking-widest text-rose-500 flex items-center gap-2">
+                        <CardTitle
+                          class="text-sm font-black uppercase tracking-widest text-rose-500 flex items-center gap-2">
                           <Heart class="w-4 h-4" /> Gustos & Vicios
                         </CardTitle>
                       </CardHeader>
@@ -332,7 +348,8 @@ function getAvatarColor(name: string) {
                         <ShieldAlert class="w-4 h-4" />
                         <p class="text-[10px] font-black uppercase tracking-widest">RED FLAGS</p>
                       </div>
-                      <p class="text-xs font-bold text-rose-600/90 leading-relaxed">{{ selectedModel.hates || 'Sin datos.' }}</p>
+                      <p class="text-xs font-bold text-rose-600/90 leading-relaxed">{{ selectedModel.hates || 'Sin
+                        datos.' }}</p>
                     </div>
 
                     <!-- Special Notes -->
@@ -341,7 +358,8 @@ function getAvatarColor(name: string) {
                         <Star class="w-4 h-4" />
                         <p class="text-[10px] font-black uppercase tracking-widest">NOTAS ESPECIALES</p>
                       </div>
-                      <p class="text-xs font-bold text-amber-600/90 leading-relaxed italic">{{ selectedModel.specialNotes || 'Sin notas.' }}</p>
+                      <p class="text-xs font-bold text-amber-600/90 leading-relaxed italic">{{
+                        selectedModel.specialNotes || 'Sin notas.' }}</p>
                     </div>
                   </div>
                 </div>
@@ -353,7 +371,8 @@ function getAvatarColor(name: string) {
                   <!-- Dimensiones -->
                   <Card class="xl:col-span-4 border-border/50 shadow-none bg-background">
                     <CardHeader class="pb-4">
-                      <CardTitle class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                      <CardTitle
+                        class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
                         <Ruler class="w-4 h-4" /> Dimensiones
                       </CardTitle>
                     </CardHeader>
@@ -366,7 +385,8 @@ function getAvatarColor(name: string) {
                         { label: 'Ojos', value: selectedModel.eyes || '---' },
                         { label: 'Pelo', value: selectedModel.hair || '---' },
                         { label: 'Cirugías', value: selectedModel.surgeries || '---' },
-                      ]" :key="i" class="flex justify-between items-center py-3 border-b border-border/40 last:border-0">
+                      ]" :key="i"
+                        class="flex justify-between items-center py-3 border-b border-border/40 last:border-0">
                         <span class="text-xs text-muted-foreground font-medium">{{ item.label }}</span>
                         <span class="text-xs font-bold text-foreground text-right">{{ item.value }}</span>
                       </div>
@@ -376,16 +396,20 @@ function getAvatarColor(name: string) {
                   <!-- Identificadores Físicos -->
                   <Card class="xl:col-span-8 border-border/50 shadow-none bg-background flex flex-col">
                     <CardHeader class="pb-4">
-                      <CardTitle class="text-sm font-black uppercase tracking-widest text-violet-500 flex items-center gap-2">
+                      <CardTitle
+                        class="text-sm font-black uppercase tracking-widest text-violet-500 flex items-center gap-2">
                         <Camera class="w-4 h-4" /> Identificadores físicos
                       </CardTitle>
                     </CardHeader>
                     <CardContent class="flex-1">
-                      <div class="p-6 rounded-2xl bg-muted/20 border border-dashed border-border/60 min-h-[200px] flex flex-col justify-center">
+                      <div
+                        class="p-6 rounded-2xl bg-muted/20 border border-dashed border-border/60 min-h-[200px] flex flex-col justify-center">
                         <div class="space-y-3">
-                          <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tatuajes & Marcas</p>
+                          <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tatuajes &
+                            Marcas</p>
                           <p class="text-sm font-bold text-foreground/80 leading-relaxed italic">
-                            {{ selectedModel.tattoos || 'No se han registrado tatuajes o marcas específicas para esta modelo.' }}
+                            {{ selectedModel.tattoos || 'No se han registrado tatuajes o marcas específicas para esta
+                            modelo.' }}
                           </p>
                         </div>
                       </div>
@@ -400,7 +424,8 @@ function getAvatarColor(name: string) {
                   <!-- Preferencias sexuales -->
                   <Card class="border-rose-500/20 bg-rose-500/5 shadow-none">
                     <CardHeader class="pb-4">
-                      <CardTitle class="text-sm font-black uppercase tracking-widest text-rose-600 flex items-center gap-2">
+                      <CardTitle
+                        class="text-sm font-black uppercase tracking-widest text-rose-600 flex items-center gap-2">
                         <Flame class="w-4 h-4" /> Preferencias sexuales
                       </CardTitle>
                     </CardHeader>
@@ -419,15 +444,18 @@ function getAvatarColor(name: string) {
                   <!-- Custom Content Rules -->
                   <Card class="border-emerald-500/20 bg-emerald-500/5 shadow-none">
                     <CardHeader class="pb-4">
-                      <CardTitle class="text-sm font-black uppercase tracking-widest text-emerald-600 flex items-center gap-2">
+                      <CardTitle
+                        class="text-sm font-black uppercase tracking-widest text-emerald-600 flex items-center gap-2">
                         <Check class="w-4 h-4" /> Custom Content Rules
                       </CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-6">
-                      <p class="text-xs font-medium text-emerald-800/70 dark:text-emerald-400/70 leading-relaxed italic">
-                        {{ selectedModel.customContentRules || 'Sin reglas específicas registradas para contenido personalizado.' }}
+                      <p
+                        class="text-xs font-medium text-emerald-800/70 dark:text-emerald-400/70 leading-relaxed italic">
+                        {{ selectedModel.customContentRules || 'Sin reglas específicas registradas para contenido
+                        personalizado.' }}
                       </p>
-                      
+
                       <Separator class="bg-emerald-500/20" />
 
                       <div class="grid grid-cols-2 gap-y-4 gap-x-8">
@@ -439,8 +467,7 @@ function getAvatarColor(name: string) {
                           { label: 'JOI', key: 'allowedJOI' },
                           { label: 'Striptease', key: 'allowedStriptease' },
                         ]" :key="item.key" class="flex items-center gap-3">
-                          <component :is="selectedModel[item.key] ? Check : X" 
-                            class="w-4 h-4" 
+                          <component :is="selectedModel[item.key] ? Check : X" class="w-4 h-4"
                             :class="selectedModel[item.key] ? 'text-emerald-500' : 'text-rose-500'" />
                           <span class="text-xs font-bold uppercase tracking-tight"
                             :class="selectedModel[item.key] ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground/60'">
@@ -455,7 +482,8 @@ function getAvatarColor(name: string) {
                 <!-- Best Selling Content Tags (Bottom Card) -->
                 <Card class="border-border/50 shadow-none bg-background">
                   <CardHeader class="pb-4">
-                    <CardTitle class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                    <CardTitle
+                      class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
                       <Tag class="w-4 h-4" /> Etiquetas de Contenido más vendido
                     </CardTitle>
                   </CardHeader>
@@ -465,7 +493,8 @@ function getAvatarColor(name: string) {
                         class="px-5 py-2 text-[10px] font-black uppercase tracking-wider rounded-full bg-muted/50 border-border/50">
                         {{ tag.tag }} <span class="ml-2 opacity-40">×{{ tag.count }}</span>
                       </Badge>
-                      <p v-if="contentTags.length === 0" class="text-xs font-medium text-muted-foreground italic">No hay registros de ventas recientes.</p>
+                      <p v-if="contentTags.length === 0" class="text-xs font-medium text-muted-foreground italic">No hay
+                        registros de ventas recientes.</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -475,20 +504,24 @@ function getAvatarColor(name: string) {
               <TabsContent value="spenders" class="space-y-6">
                 <Card class="border-border/50 shadow-none overflow-hidden bg-background">
                   <CardHeader class="pb-4">
-                    <CardTitle class="text-sm font-black uppercase tracking-widest text-amber-600 flex items-center gap-2">
+                    <CardTitle
+                      class="text-sm font-black uppercase tracking-widest text-amber-600 flex items-center gap-2">
                       <Crown class="w-4 h-4" /> Listado de Compradores
                     </CardTitle>
-                    <CardDescription class="text-[11px]">Identifica a los clientes más importantes de la modelo.</CardDescription>
+                    <CardDescription class="text-[11px]">Identifica a los clientes más importantes de la modelo.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent class="p-0">
                     <div v-if="loadingAnalytics" class="p-12 flex justify-center">
                       <div class="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                     </div>
-                    <div v-else-if="spenders.length === 0" class="p-12 text-center text-muted-foreground italic text-xs font-medium">
+                    <div v-else-if="spenders.length === 0"
+                      class="p-12 text-center text-muted-foreground italic text-xs font-medium">
                       No hay compradores registrados aún.
                     </div>
                     <div v-else class="divide-y divide-border/40">
-                      <div v-for="sp in spenders" :key="sp.username || sp.name" class="p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
+                      <div v-for="sp in spenders" :key="sp.username || sp.name"
+                        class="p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
                         <div class="flex items-center gap-3 min-w-0">
                           <Avatar class="h-9 w-9 border border-border/50 shadow-sm">
                             <AvatarFallback class="text-[10px] font-black bg-primary/10 text-primary uppercase">
@@ -496,14 +529,19 @@ function getAvatarColor(name: string) {
                             </AvatarFallback>
                           </Avatar>
                           <div class="min-w-0">
-                            <p class="text-xs font-bold truncate leading-tight text-foreground">{{ sp.name || '---' }}</p>
-                            <p class="text-[10px] text-muted-foreground font-medium truncate">@{{ sp.username || '---' }}</p>
+                            <p class="text-xs font-bold truncate leading-tight text-foreground">{{ sp.name || '---' }}
+                            </p>
+                            <p class="text-[10px] text-muted-foreground font-medium truncate">@{{ sp.username || '---'
+                              }}</p>
                           </div>
                         </div>
                         <div class="flex items-center gap-6 shrink-0">
                           <div class="text-right">
-                            <p class="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Apariciones</p>
-                            <Badge variant="secondary" class="text-[10px] font-bold py-0 h-5 border-none bg-muted/60 text-foreground">{{ sp.appearances }}×</Badge>
+                            <p class="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">
+                              Apariciones</p>
+                            <Badge variant="secondary"
+                              class="text-[10px] font-bold py-0 h-5 border-none bg-muted/60 text-foreground">{{
+                              sp.appearances }}×</Badge>
                           </div>
                         </div>
                       </div>
