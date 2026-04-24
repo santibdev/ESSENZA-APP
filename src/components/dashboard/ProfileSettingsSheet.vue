@@ -1,18 +1,17 @@
 <script setup lang="ts">
 /**
  * ProfileSettingsSheet.vue
- * Slide-in panel for user profile settings — timezone, name display, etc.
+ * Slide-in panel for user profile settings — timezone, profile picture, etc.
  * Opened from DashboardSidebar or Topbar.
  */
 import { ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { toast } from 'vue-sonner'
 import api from '@/api'
-import { Globe, User, Clock, CheckCircle2, ChevronsUpDown, Search } from 'lucide-vue-next'
+import { Globe, User, Clock, CheckCircle2, Camera, Upload, Loader2 } from 'lucide-vue-next'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList
@@ -73,6 +72,64 @@ async function saveTimezone() {
     saving.value = false
   }
 }
+
+// ── Profile Picture ────────────────────────────────────────────────────────
+const fileInput = ref<HTMLInputElement | null>(null)
+const previewUrl = ref<string | null>(null)
+const uploadingPicture = ref(false)
+
+const currentPicture = computed(() =>
+  previewUrl.value || auth.user?.profilePictureUrl || auth.user?.profilePictureBase64 || null
+)
+
+function triggerFileInput() {
+  fileInput.value?.click()
+}
+
+function onFileSelected(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    toast.error('Solo se aceptan imágenes (JPG, PNG, WebP)')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('La imagen no puede superar los 5 MB')
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    previewUrl.value = e.target?.result as string
+  }
+  reader.readAsDataURL(file)
+}
+
+async function uploadProfilePicture() {
+  if (!previewUrl.value) return
+  uploadingPicture.value = true
+  try {
+    const res = await api.put('/admin/users/me/profile-picture', {
+      profilePictureBase64: previewUrl.value
+    })
+    const newUrl = res.data?.profilePictureUrl || previewUrl.value
+    auth.updateProfilePicture(newUrl)
+    previewUrl.value = null
+    toast.success('Foto de perfil actualizada')
+  } catch {
+    toast.error('Error al subir la foto de perfil')
+  } finally {
+    uploadingPicture.value = false
+    // Reset file input so the same file can be re-selected if needed
+    if (fileInput.value) fileInput.value.value = ''
+  }
+}
+
+function cancelPreview() {
+  previewUrl.value = null
+  if (fileInput.value) fileInput.value.value = ''
+}
 </script>
 
 <template>
@@ -83,8 +140,8 @@ async function saveTimezone() {
       <SheetHeader class="px-6 pt-6 pb-4 border-b border-border">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full overflow-hidden border border-border shrink-0">
-            <img v-if="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64" 
-              :src="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64"
+            <img v-if="currentPicture"
+              :src="currentPicture"
               class="w-full h-full object-cover" />
             <div v-else class="w-full h-full bg-primary/10 flex items-center justify-center">
               <User class="w-5 h-5 text-primary" />
@@ -99,6 +156,68 @@ async function saveTimezone() {
 
       <!-- Scrollable body -->
       <div class="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+
+        <!-- ── Foto de Perfil ───────────────────────────────────────────────── -->
+        <section class="space-y-3">
+          <div class="flex items-center gap-2">
+            <Camera class="w-4 h-4 text-primary" />
+            <h3 class="text-sm font-semibold text-foreground">Foto de Perfil</h3>
+          </div>
+
+          <!-- Avatar preview area -->
+          <div class="flex items-center gap-4">
+            <div
+              class="relative w-20 h-20 rounded-full overflow-hidden border-2 border-border bg-muted shrink-0 group cursor-pointer"
+              @click="triggerFileInput"
+            >
+              <img v-if="currentPicture" :src="currentPicture" class="w-full h-full object-cover" />
+              <div v-else class="w-full h-full flex items-center justify-center">
+                <User class="w-8 h-8 text-muted-foreground/40" />
+              </div>
+              <!-- Hover overlay -->
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera class="w-5 h-5 text-white" />
+              </div>
+            </div>
+
+            <div class="flex-1 space-y-2">
+              <p class="text-xs text-muted-foreground leading-relaxed">
+                JPG, PNG o WebP. Máximo 5 MB.
+              </p>
+              <Button variant="outline" size="sm" class="gap-2 h-8 text-xs" @click="triggerFileInput">
+                <Upload class="w-3.5 h-3.5" />
+                Elegir imagen
+              </Button>
+            </div>
+          </div>
+
+          <!-- Hidden file input -->
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            class="hidden"
+            @change="onFileSelected"
+          />
+
+          <!-- Preview confirm/cancel -->
+          <div v-if="previewUrl" class="flex gap-2 pt-1">
+            <Button
+              class="flex-1 gap-2 h-9 text-xs font-bold"
+              :disabled="uploadingPicture"
+              @click="uploadProfilePicture"
+            >
+              <Loader2 v-if="uploadingPicture" class="w-3.5 h-3.5 animate-spin" />
+              <CheckCircle2 v-else class="w-3.5 h-3.5" />
+              {{ uploadingPicture ? 'Subiendo...' : 'Confirmar foto' }}
+            </Button>
+            <Button variant="ghost" size="sm" class="h-9 text-xs" :disabled="uploadingPicture" @click="cancelPreview">
+              Cancelar
+            </Button>
+          </div>
+        </section>
+
+        <Separator />
 
         <!-- ── Zona Horaria ─────────────────────────────────────────────── -->
         <section class="space-y-3">
@@ -130,7 +249,7 @@ async function saveTimezone() {
                 class="w-full justify-between h-10 font-medium text-sm"
               >
                 <span class="truncate">{{ selectedLabel }}</span>
-                <ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                <svg class="ml-2 h-4 w-4 shrink-0 opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
               </Button>
             </PopoverTrigger>
             <PopoverContent class="w-[var(--reka-popper-anchor-width)] p-0" align="start">
@@ -173,21 +292,8 @@ async function saveTimezone() {
           </Button>
         </section>
 
-        <Separator />
-
-        <!-- ── Placeholder para futuras configuraciones ─────────────────── -->
-        <section class="space-y-3">
-          <h3 class="text-sm font-semibold text-foreground text-muted-foreground/50">Próximamente</h3>
-          <div class="space-y-2 opacity-40 pointer-events-none select-none">
-            <div class="h-8 rounded-md bg-muted/50 border border-border" />
-            <div class="h-8 rounded-md bg-muted/50 border border-border w-3/4" />
-          </div>
-          <p class="text-[10px] text-muted-foreground/50">Notificaciones, idioma, apariencia...</p>
-        </section>
-
       </div>
 
     </SheetContent>
   </Sheet>
 </template>
-

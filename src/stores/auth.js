@@ -137,5 +137,12 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('user', JSON.stringify(user.value))
   }
 
-  return { user, isAuthenticated, isLoading, error, login, logout, clearError, changePassword, updateTimezone, refreshUserProfile }
+  function updateProfilePicture(url) {
+    if (!user.value) return
+    user.value.profilePictureUrl = url
+    user.value.profilePictureBase64 = null
+    localStorage.setItem('user', JSON.stringify(user.value))
+  }
+
+  return { user, isAuthenticated, isLoading, error, login, logout, clearError, changePassword, updateTimezone, updateProfilePicture, refreshUserProfile }
 })

@@ -94,6 +94,19 @@ const shiftTemplates = ref<any[]>([])
 const modelReports = ref<Record<number, ModelReport>>({})
 const dailySummary = ref<any>(null)
 const shiftStartTime = ref<string | null>(null)
+
+// ── modelReports persistence ───────────────────────────────────────────────
+import { watch as vWatch } from 'vue'
+const modelReportsKey = () => `essenza_model_reports_${auth.user?.id || 'unknown'}`
+function restoreModelReports() {
+  try {
+    const saved = localStorage.getItem(modelReportsKey())
+    if (saved) modelReports.value = JSON.parse(saved)
+  } catch { /* ignore malformed data */ }
+}
+vWatch(modelReports, (val) => {
+  try { localStorage.setItem(modelReportsKey(), JSON.stringify(val)) } catch { }
+}, { deep: true })
 const userAllSchedules = ref<any[]>([])
 
 // --- Computed ---
@@ -483,6 +496,9 @@ function resetState() {
   showReportModal.value = false; currentShiftId.value = null
   isWorking.value = false; isPaused.value = false
   workTime.value = 0; breakTime.value = 0; idleTime.value = 0; observations.value = ''
+  // Clear persisted report data since the shift is now submitted
+  modelReports.value = {}
+  try { localStorage.removeItem(modelReportsKey()) } catch { }
   clearAllTimers()
 }
 
@@ -509,6 +525,8 @@ onMounted(async () => {
   fetchTemplates()
   fetchUserAllSchedules()
   fetchDailySummary()
+  // Restore in-progress report data from previous session
+  restoreModelReports()
   // Initial data load
   try {
     const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })

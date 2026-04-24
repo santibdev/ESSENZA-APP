@@ -31,7 +31,7 @@ const closeAnnouncement = (id: number) => {
 let interval: any = null
 onMounted(() => {
   fetchAnnouncements()
-  interval = setInterval(fetchAnnouncements, 60000) // Poll every 1m
+  interval = setInterval(fetchAnnouncements, 3000) // Poll every 3s for real-time feel
 })
 onUnmounted(() => clearInterval(interval))
 
@@ -81,51 +81,66 @@ const getStyles = (ann: any) => {
 
 <template>
   <div v-if="visibleAnnouncements.length > 0" class="space-y-3 mb-6">
-    <div v-for="ann in visibleAnnouncements" :key="ann.id"
-      class="relative overflow-hidden group rounded-2xl border backdrop-blur-md transition-all animate-in slide-in-from-top duration-500"
-      :class="[getStyles(ann).container, ann.isFlash ? 'shadow-lg shadow-rose-500/10' : 'shadow-sm']">
-      
-      <!-- Colored Left Accent -->
-      <div class="absolute left-0 top-0 bottom-0 w-1.5" :class="getStyles(ann).accent" />
+    <TransitionGroup 
+      name="announcement-list" 
+      tag="div" 
+      class="space-y-3"
+    >
+      <div v-for="ann in visibleAnnouncements" :key="ann.id"
+        class="relative overflow-hidden group rounded-2xl border backdrop-blur-md transition-all shadow-sm"
+        :class="[getStyles(ann).container, ann.isFlash ? 'shadow-lg shadow-rose-500/10' : '']">
+        
+        <!-- Colored Left Accent -->
+        <div class="absolute left-0 top-0 bottom-0 w-1.5" :class="getStyles(ann).accent" />
 
-      <div class="p-4 md:p-5 flex items-center justify-between gap-6">
-        <div class="flex items-start gap-4">
-          <!-- Icon Container -->
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" :class="getStyles(ann).iconBg">
-            <component :is="getIcon(ann.type)" class="w-5 h-5" />
-          </div>
-
-          <div class="space-y-1">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span v-if="ann.isFlash" class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest animate-pulse" :class="getStyles(ann).badge">
-                FLASH ALERT
-              </span>
-              <span class="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
-                {{ ann.title || 'COMUNICADO' }}
-              </span>
+        <div class="p-4 md:p-5 flex items-center justify-between gap-6">
+          <div class="flex items-start gap-4">
+            <!-- Icon Container -->
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" :class="getStyles(ann).iconBg">
+              <component :is="getIcon(ann.type)" class="w-5 h-5" />
             </div>
-            <p class="text-sm md:text-base font-bold leading-snug tracking-tight">
-              {{ ann.text }}
-            </p>
+
+            <div class="space-y-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span v-if="ann.isFlash" class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest animate-pulse" :class="getStyles(ann).badge">
+                  FLASH ALERT
+                </span>
+                <span class="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
+                  {{ ann.title || 'COMUNICADO' }}
+                </span>
+              </div>
+              <p class="text-sm md:text-base font-bold leading-snug tracking-tight">
+                {{ ann.text }}
+              </p>
+            </div>
           </div>
+
+          <button @click="closeAnnouncement(ann.id)"
+            class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors opacity-40 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5">
+            <X class="w-4 h-4" />
+          </button>
         </div>
 
-        <button @click="closeAnnouncement(ann.id)"
-          class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors opacity-40 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5">
-          <X class="w-4 h-4" />
-        </button>
+        <!-- Subtle background shine for Flash -->
+        <div v-if="ann.isFlash" class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
       </div>
-
-      <!-- Subtle background shine for Flash -->
-      <div v-if="ann.isFlash" class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-    </div>
+    </TransitionGroup>
   </div>
 </template>
 
 <style scoped>
 /* Transición suave para entrada de anuncios */
-.animate-in {
-  animation-fill-mode: forwards;
+.announcement-list-enter-active,
+.announcement-list-leave-active {
+  transition: all 0.5s ease;
+}
+.announcement-list-enter-from {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.95);
+}
+.announcement-list-leave-to {
+  opacity: 0;
+  transform: scale(0.9);
 }
 </style>
 
