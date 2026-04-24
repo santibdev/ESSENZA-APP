@@ -407,8 +407,7 @@ function getAvatarColor(name: string) {
                           <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tatuajes &
                             Marcas</p>
                           <p class="text-sm font-bold text-foreground/80 leading-relaxed italic">
-                            {{ selectedModel.tattoos || 'No se han registrado tatuajes o marcas específicas para esta
-                            modelo.' }}
+                            {{ selectedModel.tattoos || 'No se han registrado tatuajes o marcas específicas para esta modelo.' }}
                           </p>
                         </div>
                       </div>
@@ -451,8 +450,7 @@ function getAvatarColor(name: string) {
                     <CardContent class="space-y-6">
                       <p
                         class="text-xs font-medium text-emerald-800/70 dark:text-emerald-400/70 leading-relaxed italic">
-                        {{ selectedModel.customContentRules || 'Sin reglas específicas registradas para contenido
-                        personalizado.' }}
+                        {{ selectedModel.customContentRules || 'Sin reglas específicas registradas para contenido personalizado.' }}
                       </p>
 
                       <Separator class="bg-emerald-500/20" />
