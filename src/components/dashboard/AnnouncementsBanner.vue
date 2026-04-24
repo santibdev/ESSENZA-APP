@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Megaphone, X, Bell, AlertTriangle } from 'lucide-vue-next'
-import { useAuthStore } from '@/stores/auth'
+import { Megaphone, X, Bell, AlertTriangle, Info } from 'lucide-vue-next'
 import api from '@/api'
 
-const auth = useAuthStore()
 const announcements = ref<any[]>([])
 const loading = ref(true)
 const closedIds = ref<number[]>(JSON.parse(localStorage.getItem('essenza_closed_announcements') || '[]'))
@@ -13,7 +11,7 @@ const fetchAnnouncements = async () => {
   try {
     const res = await api.get('/announcements')
     // Sort so Flash appears first
-    announcements.value = res.data.sort((a, b) => (b.isFlash ? 1 : 0) - (a.isFlash ? 1 : 0))
+    announcements.value = res.data.sort((a: any, b: any) => (b.isFlash ? 1 : 0) - (a.isFlash ? 1 : 0))
   } catch (err) {
     console.error('Failed to fetch announcements', err)
   } finally {
@@ -30,7 +28,7 @@ const closeAnnouncement = (id: number) => {
   localStorage.setItem('essenza_closed_announcements', JSON.stringify(closedIds.value))
 }
 
-let interval = null
+let interval: any = null
 onMounted(() => {
   fetchAnnouncements()
   interval = setInterval(fetchAnnouncements, 60000) // Poll every 1m
@@ -41,51 +39,93 @@ const getIcon = (type: string) => {
   switch (type) {
     case 'WARNING': return AlertTriangle
     case 'SUCCESS': return Bell
+    case 'INFO': return Info
     default: return Megaphone
   }
 }
 
-const getColor = (ann: any) => {
-  if (ann.isFlash) return 'bg-rose-600 shadow-rose-500/20'
+const getStyles = (ann: any) => {
+  if (ann.isFlash) {
+    return {
+      container: 'bg-rose-500/10 border-rose-500/20 text-rose-950 dark:text-rose-200',
+      accent: 'bg-rose-500',
+      iconBg: 'bg-rose-500/20 text-rose-600 dark:text-rose-400',
+      badge: 'bg-rose-500 text-white'
+    }
+  }
   switch (ann.type) {
-    case 'WARNING': return 'bg-amber-600 shadow-amber-500/20'
-    case 'SUCCESS': return 'bg-emerald-600 shadow-emerald-500/20'
-    default: return 'bg-indigo-600 shadow-indigo-500/20'
+    case 'WARNING':
+      return {
+        container: 'bg-amber-500/10 border-amber-500/20 text-amber-950 dark:text-amber-200',
+        accent: 'bg-amber-500',
+        iconBg: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
+        badge: 'bg-amber-500 text-white'
+      }
+    case 'SUCCESS':
+      return {
+        container: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-950 dark:text-emerald-200',
+        accent: 'bg-emerald-500',
+        iconBg: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+        badge: 'bg-emerald-500 text-white'
+      }
+    default:
+      return {
+        container: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-950 dark:text-indigo-200',
+        accent: 'bg-indigo-500',
+        iconBg: 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400',
+        badge: 'bg-indigo-500 text-white'
+      }
   }
 }
 </script>
 
 <template>
-  <div v-if="visibleAnnouncements.length > 0" class="space-y-4">
+  <div v-if="visibleAnnouncements.length > 0" class="space-y-3 mb-6">
     <div v-for="ann in visibleAnnouncements" :key="ann.id"
-      class="relative overflow-hidden group rounded-[2.5rem] p-8 text-white shadow-2xl animate-in slide-in-from-top duration-700"
-      :class="[getColor(ann), ann.isFlash ? 'ring-4 ring-white/20 animate-pulse' : '']">
+      class="relative overflow-hidden group rounded-2xl border backdrop-blur-md transition-all animate-in slide-in-from-top duration-500"
+      :class="[getStyles(ann).container, ann.isFlash ? 'shadow-lg shadow-rose-500/10' : 'shadow-sm']">
+      
+      <!-- Colored Left Accent -->
+      <div class="absolute left-0 top-0 bottom-0 w-1.5" :class="getStyles(ann).accent" />
 
-      <!-- Decor -->
-      <div
-        class="absolute top-0 right-0 p-12 opacity-10 translate-x-1/4 -translate-y-1/4 group-hover:scale-110 transition-transform">
-        <component :is="getIcon(ann.type)" class="w-32 h-32" />
-      </div>
-
-      <div class="relative z-10 flex items-center justify-between gap-8">
-        <div class="flex items-center gap-6">
-          <div
-            class="w-16 h-16 rounded-[2rem] bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner shrink-0">
-            <component :is="getIcon(ann.type)" class="w-7 h-7" />
+      <div class="p-4 md:p-5 flex items-center justify-between gap-6">
+        <div class="flex items-start gap-4">
+          <!-- Icon Container -->
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" :class="getStyles(ann).iconBg">
+            <component :is="getIcon(ann.type)" class="w-5 h-5" />
           </div>
-          <div>
-            <div class="flex items-center gap-2 mb-1.5">
-              <span v-if="ann.isFlash" class="px-2 py-0.5 rounded-full bg-white text-rose-600 text-[8px] font-black uppercase tracking-widest">Flash Alert</span>
-              <h4 class="text-[10px] font-black uppercase tracking-[0.3em] opacity-70">{{ ann.title }}</h4>
+
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span v-if="ann.isFlash" class="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest animate-pulse" :class="getStyles(ann).badge">
+                FLASH ALERT
+              </span>
+              <span class="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
+                {{ ann.title || 'COMUNICADO' }}
+              </span>
             </div>
-            <p class="text-lg font-black leading-tight tracking-tight max-w-2xl">{{ ann.text }}</p>
+            <p class="text-sm md:text-base font-bold leading-snug tracking-tight">
+              {{ ann.text }}
+            </p>
           </div>
         </div>
+
         <button @click="closeAnnouncement(ann.id)"
-          class="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 transition-all flex items-center justify-center shrink-0 border border-white/10">
-          <X class="w-6 h-6" />
+          class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors opacity-40 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5">
+          <X class="w-4 h-4" />
         </button>
       </div>
+
+      <!-- Subtle background shine for Flash -->
+      <div v-if="ann.isFlash" class="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Transición suave para entrada de anuncios */
+.animate-in {
+  animation-fill-mode: forwards;
+}
+</style>
+

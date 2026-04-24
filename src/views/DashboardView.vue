@@ -555,7 +555,7 @@ onUnmounted(() => {
           @start-shift="isExtraHoursSelection = $event; showStartModal = true" @toggle-break="toggleBreak"
           @end-shift="endShiftPrompt" />
         <div
-          class="flex-1 overflow-y-auto bg-muted/30 dark:bg-zinc-950 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700 relative">
+          :class="['flex-1 bg-muted/30 dark:bg-zinc-950 relative', activeTab === 'context' ? 'overflow-hidden' : 'overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700']">
           <!-- Textura de grilla sutil -->
           <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-[0.03]" viewBox="0 0 400 400"
             preserveAspectRatio="none">
@@ -568,7 +568,7 @@ onUnmounted(() => {
           </svg>
 
           <div
-            :class="[activeTab === 'context' ? 'max-w-none pb-4 lg:pb-8 !p-0' : 'max-w-[1400px]', 'mx-auto p-4 lg:p-8 space-y-8 relative z-10 transition-all min-h-full']">
+            :class="[activeTab === 'context' ? 'max-w-none !p-0 h-full flex flex-col' : 'max-w-[1400px] p-4 lg:p-8 space-y-8 min-h-full', 'mx-auto relative z-10 transition-all']">
             <AnnouncementsBanner />
 
             <!-- Case: TRACKER -->
@@ -597,9 +597,8 @@ onUnmounted(() => {
               <MarketingPanel v-if="isMarketing" ref="marketingPanelRef" />
             </template>
 
-            <!-- Case: CONTEXT / BITACORA -->
             <template v-else-if="activeTab === 'context'">
-              <div class="w-full">
+              <div class="w-full h-full flex flex-col">
                 <ModelKnowledgeBase :assigned-models="assignedModels" />
               </div>
             </template>

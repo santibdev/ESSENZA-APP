@@ -75,13 +75,14 @@ const formatTime = (secs: number): string => {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 bg-transparent group-hover:bg-zinc-100 dark:group-hover:bg-zinc-900 shadow-none group-hover:shadow-sm">
-              <component :is="k.i" class="w-4 h-4" :class="k.c" />
+            <div class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm"
+              :class="[k.accent.replace('bg-', 'bg-') + '/10']">
+              <component :is="k.i" class="w-5 h-5" :class="k.c" />
             </div>
           </div>
-          <p class="text-3xl font-black tabular-nums leading-none tracking-tight group-hover:text-primary transition-colors">{{ k.v }}</p>
+          <p class="text-3xl font-black tabular-nums leading-none tracking-tight transition-colors">{{ k.v }}</p>
         </CardContent>
-        <div class="absolute bottom-0 left-0 right-0 h-0.5 opacity-60 transition-all duration-300 group-hover:h-1" :class="k.accent" />
+        <div class="absolute bottom-0 left-0 right-0 h-1 transition-all duration-300" :class="k.accent" />
       </Card>
     </div>
   </TooltipProvider>

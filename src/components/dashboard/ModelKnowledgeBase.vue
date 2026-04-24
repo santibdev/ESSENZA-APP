@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
@@ -88,6 +88,16 @@ watch(selectedModel, (newVal) => {
 
 onMounted(fetchModels)
 
+const lastEntryLabel = computed(() => {
+  if (logbookEntries.value.length === 0) return '---'
+  const entry = logbookEntries.value[0]
+  const diffMins = Math.floor((Date.now() - new Date(entry.timestamp).getTime()) / 60000)
+  if (diffMins < 60) return `${diffMins}m`
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24) return `${diffHours}h`
+  return `${Math.floor(diffHours / 24)}d`
+})
+
 const avatarColors = [
   'bg-violet-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500',
   'bg-blue-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500'
@@ -100,7 +110,7 @@ function getAvatarColor(name: string) {
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row min-h-[600px] bg-background overflow-hidden">
+  <div class="flex-1 h-full flex flex-col lg:flex-row bg-background overflow-hidden">
     <!-- Sidebar: Model List -->
     <aside class="w-full lg:w-72 shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-muted/20 flex flex-col">
       <div class="p-4 border-b border-border flex items-center justify-between">
@@ -120,11 +130,13 @@ function getAvatarColor(name: string) {
               ? 'bg-primary text-primary-foreground shadow-md'
               : 'hover:bg-muted text-foreground'">
 
-            <Avatar class="h-9 w-9 shrink-0 shadow-sm">
-              <AvatarFallback :class="[
-                selectedModel?.id === model.id ? 'bg-primary-foreground/20 text-primary-foreground' : getAvatarColor(model.name) + ' text-white',
-                'text-sm font-bold'
-              ]">
+            <Avatar class="h-9 w-9 shrink-0 shadow-sm border border-white/10">
+              <AvatarImage v-if="model.profilePictureUrl" :src="model.profilePictureUrl" :alt="model.name" class="object-cover" />
+              <AvatarFallback 
+                :class="[
+                  getAvatarColor(model.name),
+                  'w-full h-full flex items-center justify-center rounded-full text-white text-sm font-bold shadow-inner'
+                ]">
                 {{ model.name.charAt(0) }}
               </AvatarFallback>
             </Avatar>
@@ -146,8 +158,13 @@ function getAvatarColor(name: string) {
       <header class="p-6 border-b border-border bg-gradient-to-r from-muted/30 to-transparent">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div class="flex items-center gap-5">
-            <Avatar class="h-20 w-20 ring-4 ring-background shadow-xl">
-              <AvatarFallback :class="[getAvatarColor(selectedModel.name), 'text-white text-3xl font-bold']">
+            <Avatar class="h-20 w-20 ring-4 ring-background shadow-xl border border-border/50">
+              <AvatarImage v-if="selectedModel.profilePictureUrl" :src="selectedModel.profilePictureUrl" :alt="selectedModel.name" class="object-cover" />
+              <AvatarFallback 
+                :class="[
+                  getAvatarColor(selectedModel.name), 
+                  'w-full h-full flex items-center justify-center rounded-full text-white text-3xl font-bold shadow-inner'
+                ]">
                 {{ selectedModel.name.charAt(0) }}
               </AvatarFallback>
             </Avatar>
@@ -165,31 +182,6 @@ function getAvatarColor(name: string) {
                     class="w-1 h-1 rounded-full bg-border" /> {{ selectedModel.age }} años</span>
               </div>
 
-              <!-- Social Links -->
-              <div class="flex items-center gap-2 pt-2">
-                <Button v-if="selectedModel.instagram" variant="outline" size="sm"
-                  class="h-8 text-[10px] font-bold uppercase tracking-wider gap-1.5 px-3 rounded-full border-pink-500/20 hover:bg-pink-500/5 text-pink-600">
-                  <Instagram class="w-3.5 h-3.5" /> {{ selectedModel.instagram }}
-                </Button>
-                <Button v-if="selectedModel.telegram" variant="outline" size="sm"
-                  class="h-8 text-[10px] font-bold uppercase tracking-wider gap-1.5 px-3 rounded-full border-sky-500/20 hover:bg-sky-500/5 text-sky-600">
-                  <Send class="w-3.5 h-3.5" /> Telegram
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quick Stats for Chatters -->
-          <div class="grid grid-cols-2 gap-3 shrink-0">
-            <div
-              class="p-3 bg-violet-500/5 border border-violet-500/10 rounded-xl flex flex-col items-center justify-center text-center">
-              <p class="text-[9px] font-black text-violet-500 uppercase tracking-widest mb-1">Top Tag</p>
-              <p class="text-xs font-bold truncate max-w-[80px]">{{ contentTags[0]?.tag || '---' }}</p>
-            </div>
-            <div
-              class="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl flex flex-col items-center justify-center text-center">
-              <p class="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">Top Spender</p>
-              <p class="text-xs font-bold truncate max-w-[80px]">{{ spenders[0]?.name || '---' }}</p>
             </div>
           </div>
         </div>
@@ -197,175 +189,248 @@ function getAvatarColor(name: string) {
 
       <div class="flex-1 overflow-hidden">
         <ScrollArea class="h-full">
-          <div class="p-6">
+          <div class="p-6 space-y-6">
+            <!-- Model Performance Cards (Matching Tracker Style) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <!-- Spenders Count -->
+              <Card class="border-border/50 relative overflow-hidden group shadow-none">
+                <CardContent class="p-5">
+                  <div class="flex items-start justify-between mb-3">
+                    <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Spenders Totales</p>
+                    <div class="w-9 h-9 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <Crown class="w-4 h-4 text-amber-600" />
+                    </div>
+                  </div>
+                  <p class="text-2xl font-black text-foreground">{{ spenders.length }}</p>
+                </CardContent>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-amber-500" />
+              </Card>
+
+              <!-- Top Content Tag -->
+              <Card class="border-border/50 relative overflow-hidden group shadow-none">
+                <CardContent class="p-5">
+                  <div class="flex items-start justify-between mb-3">
+                    <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Top Content</p>
+                    <div class="w-9 h-9 rounded-full bg-violet-500/10 flex items-center justify-center">
+                      <Tag class="w-4 h-4 text-violet-600" />
+                    </div>
+                  </div>
+                  <p class="text-2xl font-black text-foreground truncate">{{ contentTags[0]?.tag || '---' }}</p>
+                </CardContent>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-violet-500" />
+              </Card>
+
+              <!-- Last Entry Time -->
+              <Card class="border-border/50 relative overflow-hidden group shadow-none">
+                <CardContent class="p-5">
+                  <div class="flex items-start justify-between mb-3">
+                    <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Último Relevo</p>
+                    <div class="w-9 h-9 rounded-full bg-blue-500/10 flex items-center justify-center">
+                      <MessageSquare class="w-4 h-4 text-blue-600" />
+                    </div>
+                  </div>
+                  <p class="text-2xl font-black text-foreground">{{ lastEntryLabel }}</p>
+                </CardContent>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />
+              </Card>
+            </div>
+
             <Tabs default-value="bio" class="space-y-6">
-              <TabsList class="w-full justify-start h-12 p-1.5 bg-muted/50 rounded-xl">
-                <TabsTrigger value="bio" class="px-6 rounded-lg text-xs font-bold uppercase tracking-wide">Bio &
-                  Personaje</TabsTrigger>
-                <TabsTrigger value="body" class="px-6 rounded-lg text-xs font-bold uppercase tracking-wide">Atributos
-                </TabsTrigger>
-                <TabsTrigger value="sop" class="px-6 rounded-lg text-xs font-bold uppercase tracking-wide">SOP & Ventas
-                </TabsTrigger>
-                <TabsTrigger value="history"
-                  class="px-6 rounded-lg text-xs font-bold uppercase tracking-wide flex items-center gap-2">
+              <TabsList class="w-full justify-start h-14 p-1 bg-muted/30 rounded-xl border border-border/50">
+                <TabsTrigger value="bio" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">Bio & Personaje</TabsTrigger>
+                <TabsTrigger value="body" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">Atributos</TabsTrigger>
+                <TabsTrigger value="sop" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">SOP & Ventas</TabsTrigger>
+                <TabsTrigger value="spenders" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm">Compradores</TabsTrigger>
+                <TabsTrigger value="history" class="px-8 rounded-lg text-xs font-bold uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:shadow-sm flex items-center gap-2">
                   <MessageSquare class="w-3.5 h-3.5" /> Bitácora
                 </TabsTrigger>
               </TabsList>
 
-              <!-- BIO & PERSONALITY -->
+              <!-- BIO & PERSONALITY (WEB MATCH) -->
               <TabsContent value="bio" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card class="border-border/60 shadow-none bg-muted/10">
-                    <CardHeader class="pb-3">
-                      <CardTitle
-                        class="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                        <User class="w-4 h-4" /> Datos del Personaje
+                <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                  <!-- Column 1: Datos Personales -->
+                  <Card class="xl:col-span-4 border-border/50 shadow-none bg-background">
+                    <CardHeader class="pb-4">
+                      <CardTitle class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                        <User class="w-4 h-4" /> Datos personales
                       </CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-0">
                       <div v-for="(item, i) in [
-                        { label: 'Ciudad natal', value: selectedModel.hometown },
+                        { label: 'Edad', value: selectedModel.age ? selectedModel.age + ' años' : '---' },
+                        { label: 'Cumpleaños', value: selectedModel.birthday || '---' },
+                        { label: 'Ciudad natal', value: selectedModel.hometown || '---' },
+                        { label: 'Ubicación', value: selectedModel.location || '---' },
                         { label: 'Pareja', value: selectedModel.hasPartner ? 'Sí' : 'No' },
                         { label: 'Hijos', value: selectedModel.hasChildren ? 'Sí' : 'No' },
-                        { label: 'Mascotas', value: selectedModel.pets },
-                        { label: 'Estudios', value: selectedModel.studies },
-                        { label: 'Trabajo cobertura', value: selectedModel.coverJob },
-                      ]" :key="i">
-                        <div class="flex justify-between items-center py-2.5">
-                          <span class="text-xs text-muted-foreground font-medium">{{ item.label }}</span>
-                          <span class="text-xs font-bold">{{ item.value || '---' }}</span>
-                        </div>
-                        <Separator v-if="i < 5" class="bg-border/40" />
+                        { label: 'Mascotas', value: selectedModel.pets || '---' },
+                        { label: 'Coche', value: selectedModel.car || '---' },
+                      ]" :key="i" class="flex justify-between items-center py-3 border-b border-border/40 last:border-0">
+                        <span class="text-xs text-muted-foreground font-medium">{{ item.label }}</span>
+                        <span class="text-xs font-bold text-foreground text-right">{{ item.value }}</span>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card class="border-border/60 shadow-none col-span-1 md:col-span-2">
-                    <CardHeader class="pb-3">
-                      <CardTitle
-                        class="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                        <BookOpen class="w-4 h-4" /> Historia & Personaje (Bio)
+                  <!-- Column 2: Historia de marca -->
+                  <Card class="xl:col-span-4 border-border/50 shadow-none bg-background">
+                    <CardHeader class="pb-4">
+                      <CardTitle class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                        <BookOpen class="w-4 h-4" /> Historia de marca
                       </CardTitle>
                     </CardHeader>
-                    <CardContent class="space-y-4">
-                      <p
-                        class="text-sm leading-relaxed text-foreground/80 whitespace-pre-line bg-muted/20 p-4 rounded-xl italic">
-                        "{{ selectedModel.bio || 'Sin historia registrada.' }}"
-                      </p>
-                      <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                          <p class="text-[10px] font-black text-muted-foreground uppercase">Rasgos de Personalidad</p>
-                          <p class="text-xs font-bold">{{ selectedModel.personalityTraits || '---' }}</p>
+                    <CardContent class="space-y-6">
+                      <div class="space-y-2">
+                        <p class="text-xs text-muted-foreground italic leading-relaxed">
+                          {{ selectedModel.bio || 'Sin bio registrada.' }}
+                        </p>
+                      </div>
+                      <div class="space-y-4">
+                        <div class="p-4 bg-muted/30 rounded-xl space-y-1">
+                          <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Rutina</p>
+                          <p class="text-xs font-bold text-foreground leading-relaxed">{{ selectedModel.routine || '---' }}</p>
                         </div>
-                        <div class="space-y-1">
-                          <p class="text-[10px] font-black text-muted-foreground uppercase">Hobby Favorito</p>
-                          <p class="text-xs font-bold">{{ selectedModel.hobbies || '---' }}</p>
+                        <div class="p-4 bg-muted/30 rounded-xl space-y-1">
+                          <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Estudios</p>
+                          <p class="text-xs font-bold text-foreground leading-relaxed">{{ selectedModel.studies || '---' }}</p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div class="p-5 rounded-2xl bg-rose-500/5 border border-rose-500/10 space-y-3">
-                    <div class="flex items-center gap-2 text-rose-600 dark:text-rose-400">
-                      <ShieldAlert class="w-4 h-4" />
-                      <p class="text-xs font-black uppercase tracking-widest">Lo que ODIAN / Red Flags</p>
+                  <!-- Column 3: Gustos, Flags & Notes -->
+                  <div class="xl:col-span-4 space-y-6">
+                    <!-- Gustos & Vicios -->
+                    <Card class="border-border/50 shadow-none bg-background">
+                      <CardHeader class="pb-4">
+                        <CardTitle class="text-sm font-black uppercase tracking-widest text-rose-500 flex items-center gap-2">
+                          <Heart class="w-4 h-4" /> Gustos & Vicios
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                          <div class="space-y-1.5 p-3 bg-muted/20 rounded-lg">
+                            <p class="text-[9px] font-black text-muted-foreground uppercase">Comida</p>
+                            <p class="text-xs font-bold leading-tight">{{ selectedModel.food || '---' }}</p>
+                          </div>
+                          <div class="space-y-1.5 p-3 bg-muted/20 rounded-lg">
+                            <p class="text-[9px] font-black text-muted-foreground uppercase">Música</p>
+                            <p class="text-xs font-bold leading-tight">{{ selectedModel.music || '---' }}</p>
+                          </div>
+                        </div>
+                        <div class="space-y-1.5 p-3 bg-muted/20 rounded-lg">
+                          <p class="text-[9px] font-black text-muted-foreground uppercase">Hobbies</p>
+                          <p class="text-xs font-bold leading-tight">{{ selectedModel.hobbies || '---' }}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <!-- Red Flags -->
+                    <div class="p-5 rounded-xl bg-rose-500/5 border border-rose-500/20 space-y-2">
+                      <div class="flex items-center gap-2 text-rose-600">
+                        <ShieldAlert class="w-4 h-4" />
+                        <p class="text-[10px] font-black uppercase tracking-widest">RED FLAGS</p>
+                      </div>
+                      <p class="text-xs font-bold text-rose-600/90 leading-relaxed">{{ selectedModel.hates || 'Sin datos.' }}</p>
                     </div>
-                    <p class="text-sm font-medium text-rose-600/80 dark:text-rose-400/80 leading-relaxed">{{
-                      selectedModel.hates || 'Sin datos.' }}</p>
-                  </div>
-                  <div class="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10 space-y-3">
-                    <div class="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                      <Star class="w-4 h-4" />
-                      <p class="text-xs font-black uppercase tracking-widest">Notas Especiales / SOP Chat</p>
+
+                    <!-- Special Notes -->
+                    <div class="p-5 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2">
+                      <div class="flex items-center gap-2 text-amber-600">
+                        <Star class="w-4 h-4" />
+                        <p class="text-[10px] font-black uppercase tracking-widest">NOTAS ESPECIALES</p>
+                      </div>
+                      <p class="text-xs font-bold text-amber-600/90 leading-relaxed italic">{{ selectedModel.specialNotes || 'Sin notas.' }}</p>
                     </div>
-                    <p class="text-sm font-medium text-amber-600/80 dark:text-amber-400/80 leading-relaxed">{{
-                      selectedModel.specialNotes || 'Sin notas.' }}</p>
                   </div>
                 </div>
               </TabsContent>
 
-              <!-- BODY & ATTRIBUTES -->
+              <!-- BODY & ATTRIBUTES (WEB MATCH) -->
               <TabsContent value="body" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card class="border-border/60 shadow-none">
-                    <CardHeader class="pb-3">
-                      <CardTitle
-                        class="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                  <!-- Dimensiones -->
+                  <Card class="xl:col-span-4 border-border/50 shadow-none bg-background">
+                    <CardHeader class="pb-4">
+                      <CardTitle class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
                         <Ruler class="w-4 h-4" /> Dimensiones
                       </CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-0">
                       <div v-for="(item, i) in [
-                        { label: 'Altura', value: selectedModel.height },
-                        { label: 'Peso', value: selectedModel.weight },
+                        { label: 'Altura', value: selectedModel.height || '---' },
+                        { label: 'Peso', value: selectedModel.weight || '---' },
                         { label: 'Pecho', value: selectedModel.breastSize ? selectedModel.breastSize + ' (' + (selectedModel.breastType || 'Nat') + ')' : '---' },
-                        { label: 'Culo', value: selectedModel.buttSize },
-                        { label: 'Ojos', value: selectedModel.eyes },
-                        { label: 'Pelo', value: selectedModel.hair },
-                      ]" :key="i">
-                        <div class="flex justify-between items-center py-3">
-                          <span class="text-xs text-muted-foreground font-medium">{{ item.label }}</span>
-                          <span class="text-xs font-bold">{{ item.value || '---' }}</span>
-                        </div>
-                        <Separator v-if="i < 5" class="bg-border/40" />
+                        { label: 'Culo', value: selectedModel.buttSize || '---' },
+                        { label: 'Ojos', value: selectedModel.eyes || '---' },
+                        { label: 'Pelo', value: selectedModel.hair || '---' },
+                        { label: 'Cirugías', value: selectedModel.surgeries || '---' },
+                      ]" :key="i" class="flex justify-between items-center py-3 border-b border-border/40 last:border-0">
+                        <span class="text-xs text-muted-foreground font-medium">{{ item.label }}</span>
+                        <span class="text-xs font-bold text-foreground text-right">{{ item.value }}</span>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card class="border-border/60 shadow-none col-span-1 md:col-span-2 flex flex-col">
-                    <CardHeader class="pb-3">
-                      <CardTitle
-                        class="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                        <Camera class="w-4 h-4" /> Marcas de Identificación
+                  <!-- Identificadores Físicos -->
+                  <Card class="xl:col-span-8 border-border/50 shadow-none bg-background flex flex-col">
+                    <CardHeader class="pb-4">
+                      <CardTitle class="text-sm font-black uppercase tracking-widest text-violet-500 flex items-center gap-2">
+                        <Camera class="w-4 h-4" /> Identificadores físicos
                       </CardTitle>
                     </CardHeader>
-                    <CardContent
-                      class="flex-1 flex flex-col justify-center bg-muted/10 m-4 rounded-xl border border-dashed border-border/60">
-                      <div class="p-6 text-center space-y-3">
-                        <p class="text-sm font-bold text-foreground/80 leading-relaxed max-w-md mx-auto">
-                          {{ selectedModel.tattoos || 'No se han registrado tatuajes o marcas específicas para esta modelo.' }}
-                        </p>
-                        <p class="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Crucial para
-                          verificar autenticidad en chats</p>
+                    <CardContent class="flex-1">
+                      <div class="p-6 rounded-2xl bg-muted/20 border border-dashed border-border/60 min-h-[200px] flex flex-col justify-center">
+                        <div class="space-y-3">
+                          <p class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tatuajes & Marcas</p>
+                          <p class="text-sm font-bold text-foreground/80 leading-relaxed italic">
+                            {{ selectedModel.tattoos || 'No se han registrado tatuajes o marcas específicas para esta modelo.' }}
+                          </p>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
               </TabsContent>
 
-              <!-- SOP & SALES -->
+              <!-- SOP & SALES (WEB MATCH) -->
               <TabsContent value="sop" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <!-- Preferencias sexuales -->
                   <Card class="border-rose-500/20 bg-rose-500/5 shadow-none">
-                    <CardHeader class="pb-3">
-                      <CardTitle
-                        class="text-xs font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                        <Flame class="w-4 h-4" /> Preferencias Sexuales
+                    <CardHeader class="pb-4">
+                      <CardTitle class="text-sm font-black uppercase tracking-widest text-rose-600 flex items-center gap-2">
+                        <Flame class="w-4 h-4" /> Preferencias sexuales
                       </CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
-                      <div class="p-4 bg-background/60 rounded-xl border border-rose-500/10">
-                        <p class="text-[9px] font-black text-rose-500 uppercase mb-1">En el sexo prefiere...</p>
+                      <div class="p-4 bg-background/60 rounded-xl border border-rose-500/10 space-y-1.5">
+                        <p class="text-[9px] font-black text-rose-500 uppercase">Estímulo & Posición</p>
                         <p class="text-xs font-bold leading-relaxed">{{ selectedModel.sexualPreferences || '---' }}</p>
                       </div>
-                      <div class="p-4 bg-background/60 rounded-xl border border-rose-500/10">
-                        <p class="text-[9px] font-black text-rose-500 uppercase mb-1">Juguetes & Fetiches</p>
+                      <div class="p-4 bg-background/60 rounded-xl border border-rose-500/10 space-y-1.5">
+                        <p class="text-[9px] font-black text-rose-500 uppercase">Juguetes Favoritos</p>
                         <p class="text-xs font-bold leading-relaxed">{{ selectedModel.toys || '---' }}</p>
                       </div>
                     </CardContent>
                   </Card>
 
+                  <!-- Custom Content Rules -->
                   <Card class="border-emerald-500/20 bg-emerald-500/5 shadow-none">
-                    <CardHeader class="pb-3">
-                      <CardTitle
-                        class="text-xs font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                        <Check class="w-4 h-4" /> Servicios Permitidos (Customs)
+                    <CardHeader class="pb-4">
+                      <CardTitle class="text-sm font-black uppercase tracking-widest text-emerald-600 flex items-center gap-2">
+                        <Check class="w-4 h-4" /> Custom Content Rules
                       </CardTitle>
                     </CardHeader>
-                    <CardContent class="space-y-4">
-                      <div class="grid grid-cols-2 gap-3">
+                    <CardContent class="space-y-6">
+                      <p class="text-xs font-medium text-emerald-800/70 dark:text-emerald-400/70 leading-relaxed italic">
+                        {{ selectedModel.customContentRules || 'Sin reglas específicas registradas para contenido personalizado.' }}
+                      </p>
+                      
+                      <Separator class="bg-emerald-500/20" />
+
+                      <div class="grid grid-cols-2 gap-y-4 gap-x-8">
                         <div v-for="item in [
                           { label: 'Anal', key: 'allowedAnal' },
                           { label: 'Boy/Girl', key: 'allowedBoyGirl' },
@@ -373,40 +438,75 @@ function getAvatarColor(name: string) {
                           { label: 'Live Call', key: 'allowedLiveCall' },
                           { label: 'JOI', key: 'allowedJOI' },
                           { label: 'Striptease', key: 'allowedStriptease' },
-                        ]" :key="item.key" class="flex items-center gap-2.5 p-2 rounded-lg border bg-background/60"
-                          :class="selectedModel[item.key] ? 'border-emerald-500/30 text-emerald-700 dark:text-emerald-400' : 'border-rose-500/20 text-rose-600/50 dark:text-rose-400/50'">
-                          <div class="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                            :class="selectedModel[item.key] ? 'bg-emerald-500/20' : 'bg-rose-500/10'">
-                            <component :is="selectedModel[item.key] ? Check : X" class="w-3 h-3" />
-                          </div>
-                          <span class="text-xs font-black uppercase tracking-tight">{{ item.label }}</span>
+                        ]" :key="item.key" class="flex items-center gap-3">
+                          <component :is="selectedModel[item.key] ? Check : X" 
+                            class="w-4 h-4" 
+                            :class="selectedModel[item.key] ? 'text-emerald-500' : 'text-rose-500'" />
+                          <span class="text-xs font-bold uppercase tracking-tight"
+                            :class="selectedModel[item.key] ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground/60'">
+                            {{ item.label }}
+                          </span>
                         </div>
-                      </div>
-                      <Separator class="bg-emerald-500/20" />
-                      <div>
-                        <p class="text-[9px] font-black text-emerald-600 uppercase mb-1">Instrucciones de Contenido
-                          Personalizado</p>
-                        <p class="text-xs font-bold italic">{{ selectedModel.customContentRules || 'Sin reglas específicas.' }}</p>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
 
-                <Card class="border-border/60 shadow-none">
-                  <CardHeader class="pb-3">
-                    <CardTitle
-                      class="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                <!-- Best Selling Content Tags (Bottom Card) -->
+                <Card class="border-border/50 shadow-none bg-background">
+                  <CardHeader class="pb-4">
+                    <CardTitle class="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
                       <Tag class="w-4 h-4" /> Etiquetas de Contenido más vendido
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div class="flex flex-wrap gap-2">
                       <Badge v-for="tag in contentTags" :key="tag.tag" variant="secondary"
-                        class="px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-full bg-muted/50 border-border/50">
+                        class="px-5 py-2 text-[10px] font-black uppercase tracking-wider rounded-full bg-muted/50 border-border/50">
                         {{ tag.tag }} <span class="ml-2 opacity-40">×{{ tag.count }}</span>
                       </Badge>
-                      <p v-if="contentTags.length === 0" class="text-xs font-medium text-muted-foreground italic">No hay
-                        registros de ventas recientes.</p>
+                      <p v-if="contentTags.length === 0" class="text-xs font-medium text-muted-foreground italic">No hay registros de ventas recientes.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <!-- COMPRADORES (SPENDERS) -->
+              <TabsContent value="spenders" class="space-y-6">
+                <Card class="border-border/50 shadow-none overflow-hidden bg-background">
+                  <CardHeader class="pb-4">
+                    <CardTitle class="text-sm font-black uppercase tracking-widest text-amber-600 flex items-center gap-2">
+                      <Crown class="w-4 h-4" /> Listado de Compradores
+                    </CardTitle>
+                    <CardDescription class="text-[11px]">Identifica a los clientes más importantes de la modelo.</CardDescription>
+                  </CardHeader>
+                  <CardContent class="p-0">
+                    <div v-if="loadingAnalytics" class="p-12 flex justify-center">
+                      <div class="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                    </div>
+                    <div v-else-if="spenders.length === 0" class="p-12 text-center text-muted-foreground italic text-xs font-medium">
+                      No hay compradores registrados aún.
+                    </div>
+                    <div v-else class="divide-y divide-border/40">
+                      <div v-for="sp in spenders" :key="sp.username || sp.name" class="p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
+                        <div class="flex items-center gap-3 min-w-0">
+                          <Avatar class="h-9 w-9 border border-border/50 shadow-sm">
+                            <AvatarFallback class="text-[10px] font-black bg-primary/10 text-primary uppercase">
+                              {{ (sp.name || sp.username || '?').charAt(0) }}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div class="min-w-0">
+                            <p class="text-xs font-bold truncate leading-tight text-foreground">{{ sp.name || '---' }}</p>
+                            <p class="text-[10px] text-muted-foreground font-medium truncate">@{{ sp.username || '---' }}</p>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-6 shrink-0">
+                          <div class="text-right">
+                            <p class="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Apariciones</p>
+                            <Badge variant="secondary" class="text-[10px] font-bold py-0 h-5 border-none bg-muted/60 text-foreground">{{ sp.appearances }}×</Badge>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

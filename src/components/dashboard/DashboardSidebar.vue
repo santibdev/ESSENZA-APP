@@ -61,7 +61,7 @@ function selectTab(id: TabType) {
   <Transition name="slide">
     <aside class="
         fixed lg:sticky top-0 left-0 z-50 lg:z-30
-        w-64 h-screen flex flex-col overflow-hidden
+        w-64 h-full flex flex-col overflow-hidden
         bg-white dark:bg-zinc-950
         border-r border-zinc-200 dark:border-zinc-800
         transition-transform duration-300 ease-in-out
