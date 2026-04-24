@@ -310,9 +310,9 @@ watch(
       <div
         class="flex-1 -mx-2 px-2 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
         <Tabs v-if="assignedModels.length" :default-value="String(assignedModels[0]?.id)" class="w-full">
-          <TabsList class="mb-4 h-8 w-full">
+          <TabsList class="mb-4 h-auto w-full flex-wrap justify-start gap-1 p-1 bg-muted/50">
             <TabsTrigger v-for="model in assignedModels" :key="model.id" :value="String(model.id)"
-              class="text-xs px-3 h-7 flex-1">
+              class="text-xs px-3 h-7 flex-auto min-w-[70px]">
               {{ model.name }}
             </TabsTrigger>
           </TabsList>
@@ -425,9 +425,9 @@ watch(
       <div
         class="flex-1 -mx-2 px-2 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
         <Tabs v-if="assignedModels.length" :default-value="String(assignedModels[0]?.id)" class="w-full">
-          <TabsList class="mb-4 h-8 w-full">
+          <TabsList class="mb-4 h-auto w-full flex-wrap justify-start gap-1 p-1 bg-muted/50">
             <TabsTrigger v-for="model in assignedModels" :key="model.id" :value="String(model.id)"
-              class="text-xs px-3 h-7 flex-1">
+              class="text-xs px-3 h-7 flex-auto min-w-[70px]">
               {{ model.name }}
             </TabsTrigger>
           </TabsList>
