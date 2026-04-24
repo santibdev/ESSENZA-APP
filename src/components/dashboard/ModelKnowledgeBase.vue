@@ -30,7 +30,7 @@ const spenders = ref<any[]>([])
 const logbookEntries = ref<any[]>([])
 const loadingAnalytics = ref(false)
 
-const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://essenza-core-production.up.railway.app/api/v1'
+const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 async function fetchModels() {
   loading.value = true
