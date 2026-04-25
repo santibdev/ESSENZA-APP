@@ -12,6 +12,7 @@ type TabType = 'tracker' | 'history' | 'crm' | 'creative' | 'context' | 'customs
 const props = defineProps<{
   activeTab: TabType
   isMarketing: boolean
+  isContentManager?: boolean
   open?: boolean
   offDays?: string[]
 }>()
@@ -31,16 +32,16 @@ const sections = [
     label: 'Tiempo Real',
     items: [
       { id: 'tracker' as TabType, label: 'Control de Turno', icon: Radio, color: 'text-emerald-500', bg: 'bg-emerald-500/10', show: true },
-      { id: 'history' as TabType, label: 'Mi Rendimiento', icon: History, color: 'text-sky-500', bg: 'bg-sky-500/10', show: true },
+      { id: 'history' as TabType, label: 'Mi Rendimiento', icon: History, color: 'text-sky-500', bg: 'bg-sky-500/10', show: !props.isContentManager },
     ]
   },
   {
     label: 'Estrategia Agency',
     items: [
+      { id: 'customs' as TabType, label: props.isContentManager ? 'Gestión de Customs' : 'Customs', icon: Package, color: 'text-teal-500', bg: 'bg-teal-500/10', show: true },
       { id: 'crm' as TabType, label: 'Gestión de Leads', icon: Users, color: 'text-violet-500', bg: 'bg-violet-500/10', show: props.isMarketing },
       { id: 'creative' as TabType, label: 'Muro Creativo', icon: Lightbulb, color: 'text-amber-500', bg: 'bg-amber-500/10', show: props.isMarketing },
-      { id: 'context' as TabType, label: 'Modelos', icon: ClipboardCheck, color: 'text-rose-500', bg: 'bg-rose-500/10', show: true },
-      { id: 'customs' as TabType, label: 'Customs', icon: Package, color: 'text-teal-500', bg: 'bg-teal-500/10', show: true },
+      { id: 'context' as TabType, label: 'Modelos', icon: ClipboardCheck, color: 'text-rose-500', bg: 'bg-rose-500/10', show: !props.isContentManager },
     ]
   }
 ]

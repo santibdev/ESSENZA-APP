@@ -34,6 +34,7 @@ import ModelReportsSection from '@/components/dashboard/ModelReportsSection.vue'
 import ModelKnowledgeBase from '@/components/dashboard/ModelKnowledgeBase.vue'
 import CustomsList from '@/components/customs/CustomsList.vue'
 import CreateCustomModal from '@/components/customs/CreateCustomModal.vue'
+import ContentManagerKanban from '@/components/customs/ContentManagerKanban.vue'
 import { useCustomsNotifications } from '@/lib/useCustomsNotifications'
 
 // Types
@@ -130,6 +131,7 @@ const userAllSchedules = ref<any[]>([])
 
 // --- Computed ---
 const isMarketing = computed(() => auth.user?.role === 'ROLE_MARKETING')
+const isContentManager = computed(() => auth.user?.role === 'ROLE_CONTENT_MANAGER')
 const SHIFT_TARGET = computed(() => {
   // 1. Prioridad: Lo que diga el turno actual (si ya inició)
   if (shiftTarget.value) return shiftTarget.value
@@ -608,6 +610,7 @@ onUnmounted(() => {
 
       <!-- Modular Sidebar -->
       <DashboardSidebar v-model:activeTab="activeTab" v-model:open="sidebarOpen" :is-marketing="isMarketing"
+        :is-content-manager="isContentManager"
         :off-days="offDaysArray" @logout="auth.logout(); router.push({ name: 'login' })" />
 
       <main class="flex-1 flex flex-col min-w-0 relative overflow-hidden transition-colors duration-300 ">
@@ -653,8 +656,8 @@ onUnmounted(() => {
                 <NotesCard v-model="observations" />
               </div>
 
-              <!-- Model Reports Section -->
-              <ModelReportsSection v-model:model-reports="modelReports" :assigned-models="assignedModels"
+              <!-- Model Reports Section — not for Content Manager -->
+              <ModelReportsSection v-if="!isContentManager" v-model:model-reports="modelReports" :assigned-models="assignedModels"
                 :is-working="isWorking" />
 
               <MarketingPanel v-if="isMarketing" ref="marketingPanelRef" />
@@ -683,14 +686,21 @@ onUnmounted(() => {
 
             <!-- Case: CUSTOMS -->
             <template v-else-if="activeTab === 'customs'">
-              <div class="flex items-center justify-between mb-2">
-                <div />
-                <Button size="sm" @click="showCreateCustom = true" class="gap-1.5">
-                  <Plus class="w-3.5 h-3.5" /> Nuevo Custom
-                </Button>
-              </div>
-              <CustomsList :model-ids="assignedModels.map(m => m.id)" />
-              <CreateCustomModal v-model:open="showCreateCustom" :models="assignedModels" @created="() => {}" />
+              <!-- Content Manager sees the Kanban board -->
+              <template v-if="isContentManager">
+                <ContentManagerKanban />
+              </template>
+              <!-- Chatter sees their customs list -->
+              <template v-else>
+                <div class="flex items-center justify-between mb-2">
+                  <div />
+                  <Button size="sm" @click="showCreateCustom = true" class="gap-1.5">
+                    <Plus class="w-3.5 h-3.5" /> Nuevo Custom
+                  </Button>
+                </div>
+                <CustomsList :model-ids="assignedModels.map(m => m.id)" />
+                <CreateCustomModal v-model:open="showCreateCustom" :models="assignedModels" @created="() => {}" />
+              </template>
             </template>
 
           </div>
@@ -708,7 +718,7 @@ onUnmounted(() => {
             </DialogDescription>
           </DialogHeader>
           <div class="space-y-4 py-2">
-            <div class="space-y-2">
+            <div v-if="!isContentManager" class="space-y-2">
               <label class="text-xs font-medium text-muted-foreground">Facturación Inicial ($)</label>
               <Input type="number" v-model="startEarnings" placeholder="0.00" class="h-11 text-base font-bold" />
             </div>
@@ -744,7 +754,8 @@ onUnmounted(() => {
             </div>
 
             <!-- Earnings -->
-            <div class="grid gap-2">
+            <!-- Earnings — not for Content Manager -->
+            <div v-if="!isContentManager" class="grid gap-2">
               <Label for="earnings" class="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                 Facturación Neta ($)
               </Label>

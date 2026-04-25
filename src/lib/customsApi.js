@@ -27,7 +27,7 @@ export const customsApi = {
   create: (data) => req('', { method: 'POST', body: JSON.stringify(data) }),
   list: (params = {}) => {
     const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null))
-    return req(`?${q}`)
+    return req(`/detailed?${q}`)
   },
   get: (id) => req(`/${id}`),
   updateStatus: (id, data) => req(`/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),

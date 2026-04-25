@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'vue-sonner'
 import { Video, Image, Mic, Upload, X } from 'lucide-vue-next'
 import VideoCallTemplate from './VideoCallTemplate.vue'
@@ -144,18 +145,25 @@ function handleClose(v: boolean) {
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
                 <Label>Modelo</Label>
-                <select v-model="selectedModelId"
-                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring">
-                  <option :value="null" disabled>Seleccionar modelo</option>
-                  <option v-for="m in models" :key="m.id" :value="m.id">{{ m.name }}</option>
-                </select>
+                <Select :model-value="selectedModelId?.toString()" @update:model-value="selectedModelId = $event ? parseInt($event) : null">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar modelo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="m in models" :key="m.id" :value="m.id.toString()">{{ m.name }}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div class="space-y-2">
                 <Label>Prioridad</Label>
-                <select v-model="priority"
-                  class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring">
-                  <option v-for="p in priorityOptions" :key="p.id" :value="p.id">{{ p.label }}</option>
-                </select>
+                <Select v-model="priority">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="p in priorityOptions" :key="p.id" :value="p.id">{{ p.label }}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
