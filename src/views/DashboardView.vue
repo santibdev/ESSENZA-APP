@@ -35,7 +35,7 @@ import ModelKnowledgeBase from '@/components/dashboard/ModelKnowledgeBase.vue'
 import CustomsList from '@/components/customs/CustomsList.vue'
 import CreateCustomModal from '@/components/customs/CreateCustomModal.vue'
 import ContentManagerKanban from '@/components/customs/ContentManagerKanban.vue'
-import VirtualOffice from '@/components/office/VirtualOffice.vue'
+import TeamCommunication from '@/components/team/TeamCommunication.vue'
 import { useCustomsNotifications } from '@/lib/useCustomsNotifications'
 
 // Types
@@ -706,7 +706,7 @@ onUnmounted(() => {
 
             <!-- Case: OFFICE -->
             <template v-else-if="activeTab === 'office'">
-              <VirtualOffice />
+              <TeamCommunication />
             </template>
 
           </div>

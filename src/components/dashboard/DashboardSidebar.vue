@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   Radio, History, Users, Lightbulb, ClipboardCheck,
-  LogOut, X, ChevronRight, Settings, Calendar, Package, Building2
+  LogOut, X, ChevronRight, Settings, Calendar, Package, MessageSquare
 } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
@@ -38,7 +38,7 @@ const sections = [
   {
     label: 'Estrategia Agency',
     items: [
-      { id: 'office' as TabType, label: 'Oficina Virtual', icon: Building2, color: 'text-cyan-500', bg: 'bg-cyan-500/10', show: true },
+      { id: 'office' as TabType, label: 'Equipo', icon: MessageSquare, color: 'text-cyan-500', bg: 'bg-cyan-500/10', show: true },
       { id: 'customs' as TabType, label: props.isContentManager ? 'Gestión de Customs' : 'Customs', icon: Package, color: 'text-teal-500', bg: 'bg-teal-500/10', show: true },
       { id: 'crm' as TabType, label: 'Gestión de Leads', icon: Users, color: 'text-violet-500', bg: 'bg-violet-500/10', show: props.isMarketing },
       { id: 'creative' as TabType, label: 'Muro Creativo', icon: Lightbulb, color: 'text-amber-500', bg: 'bg-amber-500/10', show: props.isMarketing },
