@@ -59,7 +59,8 @@
     "publish": {
       "provider": "github",
       "owner": "santibdev",
-      "repo": "ESSENZA-APP"
+      "repo": "ESSENZA-APP",
+      "releaseType": "release"
     },
     "win": {
       "target": [

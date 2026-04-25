@@ -97,8 +97,8 @@ const shiftStartTime = ref<string | null>(null)
 
 // ── persistence ───────────────────────────────────────────────
 import { watch as vWatch } from 'vue'
-const modelReportsKey = () => `essenza_model_reports_${auth.user?.id || 'unknown'}`
-const observationsKey = () => `essenza_observations_${auth.user?.id || 'unknown'}`
+const modelReportsKey = () => `essenza_model_reports`
+const observationsKey = () => `essenza_observations`
 
 function restoreModelReports() {
   try {
