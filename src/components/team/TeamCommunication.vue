@@ -165,18 +165,38 @@ onUnmounted(() => {
 
       <!-- Direct Messages -->
       <TabsContent value="dm" class="flex-1 flex m-0">
-        <div class="w-64 border-r border-zinc-200 dark:border-zinc-800 p-2">
-          <ScrollArea class="h-full">
-            <div class="space-y-1">
-              <button v-for="conv in conversations" :key="conv.user.id" @click="selectConversation(conv)"
-                :class="['w-full p-2 rounded-lg text-left transition-colors', selectedUser?.id === conv.user.id ? 'bg-zinc-100 dark:bg-zinc-900' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50']">
-                <div class="flex items-center justify-between">
-                  <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ conv.user.name }}</span>
-                  <Badge v-if="conv.unreadCount > 0" variant="destructive" class="text-[9px] h-4">{{ conv.unreadCount }}</Badge>
-                </div>
-              </button>
-            </div>
-          </ScrollArea>
+        <div class="w-64 border-r border-zinc-200 dark:border-zinc-800 p-2 flex flex-col">
+          <!-- Online Users -->
+          <div class="mb-3">
+            <h3 class="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2 px-2">USUARIOS ONLINE</h3>
+            <ScrollArea class="max-h-48">
+              <div class="space-y-1">
+                <button v-for="user in onlineUsers" :key="user.id" @click="startDMWithUser(user)"
+                  class="w-full p-2 rounded-lg text-left hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
+                  <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                    <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ user.name }}</span>
+                  </div>
+                </button>
+              </div>
+            </ScrollArea>
+          </div>
+
+          <!-- Conversations -->
+          <div class="flex-1">
+            <h3 class="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2 px-2">CONVERSACIONES</h3>
+            <ScrollArea class="h-full">
+              <div class="space-y-1">
+                <button v-for="conv in conversations" :key="conv.user.id" @click="selectConversation(conv)"
+                  :class="['w-full p-2 rounded-lg text-left transition-colors', selectedUser?.id === conv.user.id ? 'bg-zinc-100 dark:bg-zinc-900' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50']">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ conv.user.name }}</span>
+                    <Badge v-if="conv.unreadCount > 0" variant="destructive" class="text-[9px] h-4">{{ conv.unreadCount }}</Badge>
+                  </div>
+                </button>
+              </div>
+            </ScrollArea>
+          </div>
         </div>
         <div v-if="selectedUser" class="flex-1 flex flex-col p-4">
           <div class="mb-2 pb-2 border-b border-zinc-200 dark:border-zinc-800">
