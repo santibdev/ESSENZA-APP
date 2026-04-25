@@ -95,18 +95,32 @@ const modelReports = ref<Record<number, ModelReport>>({})
 const dailySummary = ref<any>(null)
 const shiftStartTime = ref<string | null>(null)
 
-// ── modelReports persistence ───────────────────────────────────────────────
+// ── persistence ───────────────────────────────────────────────
 import { watch as vWatch } from 'vue'
 const modelReportsKey = () => `essenza_model_reports_${auth.user?.id || 'unknown'}`
+const observationsKey = () => `essenza_observations_${auth.user?.id || 'unknown'}`
+
 function restoreModelReports() {
   try {
     const saved = localStorage.getItem(modelReportsKey())
     if (saved) modelReports.value = JSON.parse(saved)
   } catch { /* ignore malformed data */ }
 }
+
+function restoreObservations() {
+  try {
+    const saved = localStorage.getItem(observationsKey())
+    if (saved) observations.value = saved
+  } catch { }
+}
+
 vWatch(modelReports, (val) => {
   try { localStorage.setItem(modelReportsKey(), JSON.stringify(val)) } catch { }
 }, { deep: true })
+
+vWatch(observations, (val) => {
+  try { localStorage.setItem(observationsKey(), val) } catch { }
+})
 const userAllSchedules = ref<any[]>([])
 
 // --- Computed ---
@@ -455,7 +469,11 @@ function startPolling() {
     isPolling = true
     try {
       const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })
-      if (res.status === 204) return // No active shift
+      if (res.status === 204) {
+        toast.error('Sesión terminada por el administrador', { duration: 10000 })
+        resetState()
+        return
+      }
       const data = await res.json()
 
       // 1. Mensajes pendientes
@@ -498,7 +516,10 @@ function resetState() {
   workTime.value = 0; breakTime.value = 0; idleTime.value = 0; observations.value = ''
   // Clear persisted report data since the shift is now submitted
   modelReports.value = {}
-  try { localStorage.removeItem(modelReportsKey()) } catch { }
+  try { 
+    localStorage.removeItem(modelReportsKey()) 
+    localStorage.removeItem(observationsKey())
+  } catch { }
   clearAllTimers()
 }
 
@@ -527,6 +548,7 @@ onMounted(async () => {
   fetchDailySummary()
   // Restore in-progress report data from previous session
   restoreModelReports()
+  restoreObservations()
   // Initial data load
   try {
     const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })

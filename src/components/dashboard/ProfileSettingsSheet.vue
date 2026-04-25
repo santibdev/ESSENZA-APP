@@ -110,7 +110,7 @@ async function uploadProfilePicture() {
   if (!previewUrl.value) return
   uploadingPicture.value = true
   try {
-    const res = await api.put('/admin/users/me/profile-picture', {
+    const res = await api.put('/admin/users/me/picture', {
       profilePictureBase64: previewUrl.value
     })
     const newUrl = res.data?.profilePictureUrl || previewUrl.value
