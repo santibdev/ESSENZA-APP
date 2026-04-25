@@ -40,6 +40,11 @@ async function fetchConversations() {
   if (res.ok) conversations.value = await res.json()
 }
 
+async function fetchOnlineUsers() {
+  const res = await fetch(`${apiUrl}/team/users/online`, { headers: headers.value })
+  if (res.ok) onlineUsers.value = await res.json()
+}
+
 async function fetchDMs(userId) {
   const res = await fetch(`${apiUrl}/team/dm/${userId}`, { headers: headers.value })
   if (res.ok) dmMessages.value = await res.json()
@@ -101,6 +106,11 @@ function selectConversation(conv) {
   fetchDMs(conv.user.id)
 }
 
+function startDMWithUser(user) {
+  selectedUser.value = user
+  dmMessages.value = []
+}
+
 function joinMeeting(meeting) {
   activeMeeting.value = meeting
   callOpen.value = true
@@ -109,6 +119,7 @@ function joinMeeting(meeting) {
 onMounted(() => {
   fetchTeamMessages()
   fetchConversations()
+  fetchOnlineUsers()
   fetchMeetings()
   connectWS()
 })
