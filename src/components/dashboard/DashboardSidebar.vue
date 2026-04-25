@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {
   Radio, History, Users, Lightbulb, ClipboardCheck,
-  LogOut, X, ChevronRight, Settings, Calendar
+  LogOut, X, ChevronRight, Settings, Calendar, Package
 } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import ProfileSettingsSheet from '@/components/dashboard/ProfileSettingsSheet.vue'
 
-type TabType = 'tracker' | 'history' | 'crm' | 'creative' | 'context'
+type TabType = 'tracker' | 'history' | 'crm' | 'creative' | 'context' | 'customs'
 
 const props = defineProps<{
   activeTab: TabType
@@ -40,6 +40,7 @@ const sections = [
       { id: 'crm' as TabType, label: 'Gestión de Leads', icon: Users, color: 'text-violet-500', bg: 'bg-violet-500/10', show: props.isMarketing },
       { id: 'creative' as TabType, label: 'Muro Creativo', icon: Lightbulb, color: 'text-amber-500', bg: 'bg-amber-500/10', show: props.isMarketing },
       { id: 'context' as TabType, label: 'Historial de Relevo', icon: ClipboardCheck, color: 'text-rose-500', bg: 'bg-rose-500/10', show: true },
+      { id: 'customs' as TabType, label: 'Customs', icon: Package, color: 'text-teal-500', bg: 'bg-teal-500/10', show: true },
     ]
   }
 ]

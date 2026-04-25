@@ -32,6 +32,9 @@ import LeadsKanban from '@/components/dashboard/LeadsKanban.vue'
 import UserShiftHistory from '@/components/dashboard/UserShiftHistory.vue'
 import ModelReportsSection from '@/components/dashboard/ModelReportsSection.vue'
 import ModelKnowledgeBase from '@/components/dashboard/ModelKnowledgeBase.vue'
+import CustomsList from '@/components/customs/CustomsList.vue'
+import CreateCustomModal from '@/components/customs/CreateCustomModal.vue'
+import { useCustomsNotifications } from '@/lib/useCustomsNotifications'
 
 // Types
 interface AssignedModel { id: number; name: string; alias?: string }
@@ -76,7 +79,9 @@ const userOffDays = ref('')
 const shiftTarget = ref<number>(0)
 const assignedModels = ref<AssignedModel[]>([])
 const modelsHistory = ref<Record<number, HistoryEntry[]>>({})
-const activeTab = ref<'tracker' | 'history' | 'crm' | 'creative' | 'context'>('tracker')
+const activeTab = ref<'tracker' | 'history' | 'crm' | 'creative' | 'context' | 'customs'>('tracker')
+const showCreateCustom = ref(false)
+const customsNotifications = useCustomsNotifications(() => assignedModels.value.map((m: any) => m.id))
 const sidebarOpen = ref(false)
 
 const startEarnings = ref(0)
@@ -470,6 +475,21 @@ function startPolling() {
     try {
       const res = await fetch(`${apiUrl}/shifts/current`, { headers: authHeaders() })
       if (res.status === 204) {
+        try {
+          if (currentShiftId.value) {
+            const evRes = await fetch(`${apiUrl}/shifts/${currentShiftId.value}/events`, { headers: authHeaders() })
+            if (evRes.ok) {
+              const events = await evRes.json()
+              const forceEndEvent = events.find((e: any) => e.eventType === 'FORCE_END')
+              if (forceEndEvent && forceEndEvent.detail) {
+                toast.error(`Cierre Forzado: ${forceEndEvent.detail}`, { duration: 15000 })
+                window.electronAPI?.sendNotification?.({ title: 'Turno Terminado', body: forceEndEvent.detail })
+                resetState()
+                return
+              }
+            }
+          }
+        } catch {}
         toast.error('Sesión terminada por el administrador', { duration: 10000 })
         resetState()
         return
@@ -568,8 +588,11 @@ onMounted(async () => {
     const sRes = await fetch(`${apiUrl}/admin/users/schedule/current`, { headers: authHeaders() })
     if (sRes.ok) {
       userSchedule.value = await sRes.json()
-      assignedModels.value = userSchedule.value.assignedModels || []
+      const models = userSchedule.value.assignedModels || []
+      assignedModels.value = models.sort((a: any, b: any) => a.name.localeCompare(b.name))
       await loadHandoff()
+      // Start customs notifications polling
+      customsNotifications.start()
     }
   } catch { }
 })
@@ -656,6 +679,18 @@ onUnmounted(() => {
             <!-- Case: HISTORY -->
             <template v-else-if="activeTab === 'history'">
               <UserShiftHistory />
+            </template>
+
+            <!-- Case: CUSTOMS -->
+            <template v-else-if="activeTab === 'customs'">
+              <div class="flex items-center justify-between mb-2">
+                <div />
+                <Button size="sm" @click="showCreateCustom = true" class="gap-1.5">
+                  <Plus class="w-3.5 h-3.5" /> Nuevo Custom
+                </Button>
+              </div>
+              <CustomsList />
+              <CreateCustomModal v-model:open="showCreateCustom" :models="assignedModels" @created="() => {}" />
             </template>
 
           </div>
