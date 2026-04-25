@@ -28,7 +28,7 @@ const videoEnabled = ref(true)
 const localVideo = ref(null)
 const participants = ref([])
 
-const myEmail = computed(() => auth.user?.email)
+const myEmail = computed(() => auth.user?.username)
 
 async function startCall() {
   try {
