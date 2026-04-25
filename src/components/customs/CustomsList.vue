@@ -9,6 +9,7 @@ import CompleteCustomModal from './CompleteCustomModal.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const props = defineProps<{ modelIds?: number[] }>()
 const customs = ref<any[]>([])
 const loading = ref(false)
 const completeOpen = ref(false)
@@ -24,7 +25,7 @@ const statusConfig: Record<string, { label: string; icon: any; color: string }> 
 
 const typeConfig: Record<string, { label: string; icon: any; color: string }> = {
   VIDEO_CALL: { label: 'Videollamada', icon: Video, color: 'text-blue-500' },
-  IMAGE: { label: 'Imágenes', icon: Image, color: 'text-purple-500' },
+  IMAGE: { label: 'Imágenes/Videos', icon: Image, color: 'text-purple-500' },
   AUDIO: { label: 'Audio', icon: Mic, color: 'text-amber-500' },
 }
 
@@ -40,7 +41,15 @@ const readyCount = computed(() => customs.value.filter(c => c.status === 'READY_
 async function load() {
   loading.value = true
   try {
-    customs.value = await customsApi.list({ userId: auth.user?.id })
+    // Load customs for all assigned models (shared between chatters of same model)
+    const ids = props.modelIds?.length ? props.modelIds : []
+    if (!ids.length) { customs.value = []; return }
+    const results = await Promise.all(ids.map(id => customsApi.list({ modelId: id })))
+    // Flatten and deduplicate
+    const all = results.flat()
+    const seen = new Set<number>()
+    customs.value = all.filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   } catch { } finally {
     loading.value = false
   }

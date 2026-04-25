@@ -39,7 +39,7 @@ const sections = [
     items: [
       { id: 'crm' as TabType, label: 'Gestión de Leads', icon: Users, color: 'text-violet-500', bg: 'bg-violet-500/10', show: props.isMarketing },
       { id: 'creative' as TabType, label: 'Muro Creativo', icon: Lightbulb, color: 'text-amber-500', bg: 'bg-amber-500/10', show: props.isMarketing },
-      { id: 'context' as TabType, label: 'Historial de Relevo', icon: ClipboardCheck, color: 'text-rose-500', bg: 'bg-rose-500/10', show: true },
+      { id: 'context' as TabType, label: 'Modelos', icon: ClipboardCheck, color: 'text-rose-500', bg: 'bg-rose-500/10', show: true },
       { id: 'customs' as TabType, label: 'Customs', icon: Package, color: 'text-teal-500', bg: 'bg-teal-500/10', show: true },
     ]
   }
@@ -131,8 +131,9 @@ function selectTab(id: TabType) {
         <!-- User Profile (El diseño que te gustó) -->
         <div
           class="flex items-center gap-3 px-3 py-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800/40 relative group/user">
-          <span class="w-10 h-10 rounded-lg bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 shadow-sm transition-transform duration-300 group-hover/user:scale-105 flex items-center justify-center">
-            <img v-if="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64" 
+          <span
+            class="w-10 h-10 rounded-lg bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 shadow-sm transition-transform duration-300 group-hover/user:scale-105 flex items-center justify-center">
+            <img v-if="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64"
               :src="auth.user?.profilePictureUrl || auth.user?.profilePictureBase64"
               class="w-full h-full object-cover" />
             <span v-else
@@ -145,12 +146,12 @@ function selectTab(id: TabType) {
               <p class="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate tracking-tight leading-none">{{
                 auth.user?.name }}</p>
               <!-- Badge de Día Libre integrado -->
-              <span v-if="offDays && offDays.length > 0" class="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-white dark:bg-zinc-800 text-primary border border-primary/20 shadow-sm shrink-0">
+              <span v-if="offDays && offDays.length > 0"
+                class="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-white dark:bg-zinc-800 text-primary border border-primary/20 shadow-sm shrink-0">
                 OFF: {{ offDays[0] }}
               </span>
             </div>
-            <p
-              class="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest leading-none">
+            <p class="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest leading-none">
               {{ auth.user?.role?.replace('ROLE_', '') }}
             </p>
           </div>
