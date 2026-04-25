@@ -35,6 +35,7 @@ import ModelKnowledgeBase from '@/components/dashboard/ModelKnowledgeBase.vue'
 import CustomsList from '@/components/customs/CustomsList.vue'
 import CreateCustomModal from '@/components/customs/CreateCustomModal.vue'
 import ContentManagerKanban from '@/components/customs/ContentManagerKanban.vue'
+import VirtualOffice from '@/components/office/VirtualOffice.vue'
 import { useCustomsNotifications } from '@/lib/useCustomsNotifications'
 
 // Types
@@ -80,7 +81,7 @@ const userOffDays = ref('')
 const shiftTarget = ref<number>(0)
 const assignedModels = ref<AssignedModel[]>([])
 const modelsHistory = ref<Record<number, HistoryEntry[]>>({})
-const activeTab = ref<'tracker' | 'history' | 'crm' | 'creative' | 'context' | 'customs'>('tracker')
+const activeTab = ref<'tracker' | 'history' | 'crm' | 'creative' | 'context' | 'customs' | 'office'>('tracker')
 const showCreateCustom = ref(false)
 const customsNotifications = useCustomsNotifications(() => assignedModels.value.map((m: any) => m.id))
 const sidebarOpen = ref(false)
@@ -701,6 +702,11 @@ onUnmounted(() => {
                 <CustomsList :model-ids="assignedModels.map(m => m.id)" />
                 <CreateCustomModal v-model:open="showCreateCustom" :models="assignedModels" @created="() => {}" />
               </template>
+            </template>
+
+            <!-- Case: OFFICE -->
+            <template v-else-if="activeTab === 'office'">
+              <VirtualOffice />
             </template>
 
           </div>
