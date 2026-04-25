@@ -26,8 +26,17 @@ async function req(path, options = {}) {
 export const customsApi = {
   create: (data) => req('', { method: 'POST', body: JSON.stringify(data) }),
   list: (params = {}) => {
-    const q = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null))
-    return req(`/detailed?${q}`)
+    const q = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value != null) {
+        if (Array.isArray(value)) {
+          value.forEach(v => q.append(key, v.toString()))
+        } else {
+          q.append(key, value.toString())
+        }
+      }
+    })
+    return req(`?${q}`)
   },
   get: (id) => req(`/${id}`),
   updateStatus: (id, data) => req(`/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),
