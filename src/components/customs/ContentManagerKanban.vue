@@ -226,44 +226,122 @@ onMounted(load)
 
     <!-- Detail dialog (read-only for CM) -->
     <Dialog v-model:open="detailOpen">
-      <DialogContent class="max-w-lg p-0 gap-0 overflow-hidden">
-        <DialogHeader class="px-5 pt-5 pb-4 border-b border-border">
-          <div class="flex items-center gap-3">
-            <span v-if="selectedCustom" class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              :class="typeConfig[selectedCustom.type]?.color.replace('text-', 'bg-').replace('500', '500/10')">
-              <component :is="typeConfig[selectedCustom.type]?.icon" class="w-4 h-4" :class="typeConfig[selectedCustom.type]?.color" />
-            </span>
-            <div>
-              <DialogTitle class="text-sm font-black tracking-tight">
-                {{ selectedCustom?.model?.name }} — {{ typeConfig[selectedCustom?.type]?.label }}
-              </DialogTitle>
-              <p class="text-xs text-zinc-400 mt-0.5">Creado por {{ selectedCustom?.createdByUser?.name }} · {{ selectedCustom?.createdAt ? formatDate(selectedCustom.createdAt) : '' }}</p>
+      <DialogContent class="flex h-[75vh] max-w-5xl flex-col gap-0 overflow-hidden p-0">
+        
+        <!-- Header -->
+        <div v-if="selectedCustom" class="shrink-0 space-y-3 border-b px-6 pb-4 pt-5">
+          <div class="flex items-start gap-4">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-muted">
+              <component :is="typeConfig[selectedCustom.type]?.icon" class="h-5 w-5" :class="typeConfig[selectedCustom.type]?.color" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <h3 class="truncate text-lg font-medium leading-snug">{{ selectedCustom.model?.name }}</h3>
+              <p class="mt-0.5 text-sm text-muted-foreground">{{ typeConfig[selectedCustom.type]?.label }} · #{{ selectedCustom.id }}</p>
             </div>
           </div>
-        </DialogHeader>
-        <ScrollArea class="max-h-[60vh]">
-          <div class="p-5 space-y-4">
-            <div v-for="(value, key) in templateParsed" :key="key" v-show="value"
-              class="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900">
-              <p class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide mb-1">{{ key }}</p>
-              <p class="text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">{{ value }}</p>
+          
+          <div class="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Creado por {{ selectedCustom.createdByUser?.name }}</span>
+            <span class="opacity-40">·</span>
+            <span>{{ formatDate(selectedCustom.createdAt) }}</span>
+          </div>
+        </div>
+
+        <!-- Body: Grid 50/50 -->
+        <div class="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
+          
+          <!-- LEFT: Details -->
+          <ScrollArea>
+            <div class="space-y-5 px-6 py-5">
+              <!-- Template fields -->
+              <section v-if="Object.keys(templateParsed).length" class="space-y-2.5">
+                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Detalles del custom</p>
+                <div class="overflow-hidden rounded-lg border divide-y divide-border">
+                  <div v-for="(value, key) in templateParsed" :key="key" v-show="value" class="flex items-stretch">
+                    <span class="flex w-36 shrink-0 items-center self-stretch border-r bg-muted/50 px-4 py-3 text-xs font-medium text-muted-foreground">
+                      {{ key }}
+                    </span>
+                    <span class="flex-1 break-words px-4 py-3 text-sm text-foreground whitespace-pre-wrap">
+                      {{ value }}
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Reference images -->
+              <section v-if="attachmentsParsed.length" class="space-y-2.5">
+                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Imágenes de referencia</p>
+                <div class="flex flex-wrap gap-3">
+                  <div v-for="(att, i) in attachmentsParsed" :key="i" class="group relative cursor-pointer">
+                    <img :src="att.url" class="h-24 w-24 rounded-lg border object-cover transition-all group-hover:opacity-70 group-hover:scale-105"
+                      @click="window.open(att.url, '_blank')" />
+                    <div class="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                      <ZoomIn class="h-6 w-6 text-white drop-shadow-lg" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Drive link -->
+              <section v-if="selectedCustom?.driveLink" class="space-y-2.5">
+                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contenido final</p>
+                <a :href="selectedCustom.driveLink" target="_blank"
+                  class="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/60">
+                  <Link class="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span class="flex-1 truncate text-sm text-foreground">{{ selectedCustom.driveLink }}</span>
+                </a>
+              </section>
             </div>
-            <div v-if="attachmentsParsed.length">
-              <p class="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Imágenes de referencia</p>
-              <div class="flex flex-wrap gap-2">
-                <img v-for="(att, i) in attachmentsParsed" :key="i"
-                  :src="att.url" class="w-24 h-24 rounded-lg object-cover border border-border cursor-pointer"
-                  @click="window.open(att.url, '_blank')" />
+          </ScrollArea>
+
+          <!-- RIGHT: Activity (read-only for CM) -->
+          <div class="flex flex-col overflow-hidden border-l">
+            <div class="flex shrink-0 items-center justify-between border-b px-4 py-2.5">
+              <p class="text-sm font-medium text-foreground">Actividad</p>
+              <span class="text-xs text-muted-foreground">{{ selectedCustom?.history?.length ?? 0 }}</span>
+            </div>
+
+            <div v-if="!selectedCustom?.history?.length" class="flex flex-1 items-center justify-center">
+              <div class="text-center">
+                <Clock class="mx-auto mb-2 h-8 w-8 text-muted-foreground/30" />
+                <p class="text-sm text-muted-foreground">Sin actividad</p>
               </div>
             </div>
-            <div v-if="selectedCustom?.driveLink" class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
-              <p class="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide mb-1">Link de Drive</p>
-              <a :href="selectedCustom.driveLink" target="_blank" class="text-sm text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1 break-all">
-                <Link class="w-3.5 h-3.5 shrink-0" /> {{ selectedCustom.driveLink }}
-              </a>
-            </div>
+
+            <ScrollArea v-else class="flex-1">
+              <div class="space-y-3 p-4">
+                <div v-for="(entry, idx) in selectedCustom.history" :key="entry.id ?? idx"
+                  class="flex gap-3 rounded-lg p-3 transition-all"
+                  :class="idx === selectedCustom.history.length - 1 ? 'bg-gradient-to-r from-blue-500/10 to-transparent border-l-2 border-blue-500' : 'hover:bg-muted/30'">
+                  
+                  <!-- Avatar -->
+                  <div class="shrink-0">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-full border-2 text-xs font-bold"
+                      :class="idx === selectedCustom.history.length - 1 ? 'bg-blue-500 text-white border-blue-600' : 'bg-muted text-muted-foreground border-border'">
+                      {{ (entry.createdByUser?.name || entry.user?.name || entry.username || 'S').charAt(0).toUpperCase() }}
+                    </div>
+                  </div>
+
+                  <!-- Content -->
+                  <div class="min-w-0 flex-1">
+                    <div class="mb-1 flex items-center gap-2">
+                      <span class="text-sm font-semibold text-foreground">
+                        {{ entry.createdByUser?.name || entry.user?.name || entry.username || 'Sistema' }}
+                      </span>
+                      <span class="text-xs text-muted-foreground">{{ entry.action?.toLowerCase() }}</span>
+                    </div>
+                    <div class="mb-2 text-xs text-muted-foreground">{{ formatDate(entry.timestamp || entry.createdAt) }}</div>
+                    <div v-if="entry.comment" class="mt-2 rounded-lg border px-3 py-2.5 text-sm"
+                      :class="idx === selectedCustom.history.length - 1 ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900' : 'bg-muted/30 border-border'">
+                      {{ entry.comment }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
           </div>
-        </ScrollArea>
+        </div>
+
       </DialogContent>
     </Dialog>
   </div>

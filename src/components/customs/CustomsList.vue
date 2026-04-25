@@ -1,533 +1,501 @@
-<script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { toast } from 'vue-sonner'
-import { Video, Image, Mic, Clock, RefreshCw, CheckCircle, ExternalLink, Eye, Send } from 'lucide-vue-next'
-import { customsApi } from '@/lib/customsApi'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { 
+  AlertTriangle, RefreshCw, CheckCircle2, Package, Loader2, Clock, 
+  Plus, Filter, TrendingUp, ChevronLeft, ChevronRight, User, ExternalLink, Info
+} from 'lucide-vue-next'
+import { TYPE, STATUS, PRIO, fmt } from './customs.config.js'
+import { useCustoms } from './useCustoms.js'
+import CustomDetailSheet from './CustomDetailSheet.vue'
+import CreateCustomModal from './CreateCustomModal.vue'
 
-const props = defineProps<{
-  modelIds: number[]
-}>()
+const props = defineProps({
+  modelIds: { type: Array, default: () => [] },
+  models: { type: Array, default: () => [] },
+  isOnShift: { type: Boolean, default: false },
+})
 
-function formatDateTime(dateString) {
-  if (!dateString) return 'Fecha no disponible'
-  
-  try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return 'Fecha inválida'
-    
-    return date.toLocaleString('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch (error) {
-    return 'Fecha inválida'
+const { customs, loading, urgent, byModel, completed, load, refreshOne } = useCustoms(
+  () => props.modelIds
+)
+
+// Sheet & Modal state
+const selected = ref(null)
+const sheetOpen = ref(false)
+const createModalOpen = ref(false)
+
+// Filters
+const searchQuery = ref('')
+const filterModel = ref('all')
+const filterStatus = ref('all')
+const filterPriority = ref('all')
+const filterType = ref('all')
+
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = 20
+
+// Computed
+const filteredCustoms = computed(() => {
+  let result = [...customs.value]
+
+  // Search
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(c =>
+      c.model?.name?.toLowerCase().includes(q) ||
+      c.createdByUsername?.toLowerCase().includes(q) ||
+      c.completedByUsername?.toLowerCase().includes(q) ||
+      c.id.toString().includes(q)
+    )
+  }
+
+  // Filters
+  if (filterModel.value !== 'all') {
+    result = result.filter(c => c.model?.id === parseInt(filterModel.value))
+  }
+  if (filterStatus.value !== 'all') {
+    result = result.filter(c => c.status === filterStatus.value)
+  }
+  if (filterPriority.value !== 'all') {
+    result = result.filter(c => c.priority === filterPriority.value)
+  }
+  if (filterType.value !== 'all') {
+    result = result.filter(c => c.type === filterType.value)
+  }
+
+  // Ordenar: completados siempre al final
+  result.sort((a, b) => {
+    const aCompleted = a.status === 'COMPLETED' ? 1 : 0
+    const bCompleted = b.status === 'COMPLETED' ? 1 : 0
+    if (aCompleted !== bCompleted) return aCompleted - bCompleted
+    // Si ambos tienen el mismo estado de completado, ordenar por fecha (más recientes primero)
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
+
+  return result
+})
+
+const paginatedCustoms = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredCustoms.value.slice(start, end)
+})
+
+const totalPages = computed(() => Math.ceil(filteredCustoms.value.length / itemsPerPage))
+
+const stats = computed(() => ({
+  total: customs.value.length,
+  urgent: customs.value.filter(c => c.priority === 'URGENT').length,
+  readyForUpload: customs.value.filter(c => c.status === 'READY_FOR_UPLOAD').length,
+  completed: completed.value.length,
+}))
+
+// Methods
+function openSheet(custom) {
+  selected.value = custom
+  sheetOpen.value = true
+}
+
+function openCreateModal() {
+  if (!props.isOnShift) {
+    // toast.error('Necesitás estar en turno para crear customs')
+    return
+  }
+  createModalOpen.value = true
+}
+
+async function onCompleted(id) {
+  await load()
+}
+
+async function onCommented(id) {
+  const updated = await refreshOne(id)
+  if (updated && selected.value?.id === id) {
+    selected.value = updated
   }
 }
 
-function translateField(field) {
-  const translations = {
-    'ofUser': 'Usuario OF',
-    'nick': 'Nick',
-    'price': 'Precio',
-    'time': 'Tiempo',
-    'language': 'Idioma',
-    'quantity': 'Cantidad',
-    'notes': 'Notas',
-    'description': 'Descripción',
-    'fanName': 'Nombre del Fan',
-    'duration': 'Duración'
-  }
-  return translations[field] || field
+async function onCreated() {
+  await load()
 }
 
-function translatePriority(priority) {
-  const translations = {
-    'LOW': 'Baja',
-    'NORMAL': 'Normal', 
-    'HIGH': 'Alta',
-    'URGENT': 'Urgente'
-  }
-  return translations[priority] || priority
+function resetFilters() {
+  searchQuery.value = ''
+  filterModel.value = 'all'
+  filterStatus.value = 'all'
+  filterPriority.value = 'all'
+  filterType.value = 'all'
+  currentPage.value = 1
 }
 
-function getPriorityColor(priority) {
-  const colors = {
-    'LOW': 'text-gray-600',
-    'NORMAL': 'text-blue-600',
-    'HIGH': 'text-orange-600', 
-    'URGENT': 'text-red-600'
-  }
-  return colors[priority] || 'text-gray-600'
-}
-
-function getTimelineColor(action) {
-  const colors = {
-    'CREATED': 'bg-blue-500',
-    'STATUS_CHANGED': 'bg-orange-500',
-    'COMMENT_ADDED': 'bg-green-500',
-    'COMPLETED': 'bg-emerald-500'
-  }
-  return colors[action] || 'bg-gray-500'
-}
-
-function translateAction(action) {
-  const translations = {
-    'CREATED': 'Creado',
-    'STATUS_CHANGED': 'Estado cambiado',
-    'COMMENT_ADDED': 'Comentario agregado',
-    'COMPLETED': 'Completado',
-    'SENT': 'Enviado',
-    'READY_FOR_UPLOAD': 'Listo para subir'
-  }
-  return translations[action] || action
-}
-
-function getUserInitial(historyItem) {
-  const username = historyItem.createdByUser?.username || 
-                   historyItem.username || 
-                   historyItem.user?.username || 
-                   'Sistema'
-  return username.charAt(0).toUpperCase()
-}
-
-const customs = ref([])
-const loading = ref(false)
-const selectedCustom = ref(null)
-const showDetail = ref(false)
-const showComplete = ref(false)
-const comment = ref('')
-const newComment = ref('')
-const addingComment = ref(false)
-
-const typeConfig = {
-  VIDEO_CALL: { label: 'Videollamada', icon: Video, color: 'bg-blue-500' },
-  IMAGE: { label: 'Imágenes/Videos', icon: Image, color: 'bg-purple-500' },
-  AUDIO: { label: 'Audio', icon: Mic, color: 'bg-amber-500' }
-}
-
-const statusConfig = {
-  CREATED: { label: 'Creado', color: 'bg-slate-500' },
-  SENT: { label: 'Enviado', color: 'bg-blue-500' },
-  READY_FOR_UPLOAD: { label: 'Listo', color: 'bg-orange-500' },
-  COMPLETED: { label: 'Enviado', color: 'bg-green-500' }
-}
-
-const activeCustoms = computed(() => customs.value.filter(c => c.status !== 'COMPLETED'))
-const completedCustoms = computed(() => customs.value.filter(c => c.status === 'COMPLETED'))
-
-async function load() {
-  if (!props.modelIds?.length) return
-  loading.value = true
-  try {
-    const response = await customsApi.list({ modelIds: props.modelIds })
-    customs.value = response || []
-  } catch (error) {
-    toast.error('Error al cargar customs')
-  } finally {
-    loading.value = false
+function getStatusBorderClass(status) {
+  switch (status) {
+    case 'CREATED': return 'border-l-zinc-500/50'
+    case 'SENT': return 'border-l-blue-500/50'
+    case 'READY_FOR_UPLOAD': return 'border-l-amber-500/50'
+    case 'COMPLETED': return 'border-l-emerald-500/50'
+    default: return 'border-l-zinc-500/50'
   }
 }
 
-function openDetail(custom) {
-  selectedCustom.value = custom
-  console.log('Selected custom:', custom)
-  console.log('History:', custom.history)
-  showDetail.value = true
-}
-
-function openComplete(custom) {
-  selectedCustom.value = custom
-  comment.value = 'Contenido enviado al fan'
-  showComplete.value = true
-}
-
-async function submitComplete() {
-  try {
-    await customsApi.updateStatus(selectedCustom.value.id, {
-      status: 'COMPLETED',
-      comment: comment.value
-    })
-    toast.success('Custom completado')
-    showComplete.value = false
-    load()
-  } catch {
-    toast.error('Error al completar custom')
-  }
-}
-
-async function addComment() {
-  if (!newComment.value.trim()) return
-  addingComment.value = true
-  try {
-    await customsApi.addComment(selectedCustom.value.id, newComment.value)
-    newComment.value = ''
-    toast.success('Comentario agregado')
-    
-    // Reload the specific custom to get updated history
-    const updatedCustom = await customsApi.get(selectedCustom.value.id)
-    selectedCustom.value = updatedCustom
-    
-    // Also update in the main list
-    const customIndex = customs.value.findIndex(c => c.id === selectedCustom.value.id)
-    if (customIndex !== -1) {
-      customs.value[customIndex] = updatedCustom
-    }
-  } catch (error) {
-    console.error('Error adding comment:', error)
-    toast.error('Error al agregar comentario')
-  } finally {
-    addingComment.value = false
-  }
-}
+watch([searchQuery, filterModel, filterStatus, filterPriority, filterType], () => {
+  currentPage.value = 1
+})
 
 onMounted(load)
 </script>
 
 <template>
   <div class="space-y-4">
-    <!-- Header -->
+
+    <!-- Header con título y botón -->
     <div class="flex items-center justify-between">
-      <h3 class="text-lg font-semibold">Mis Customs</h3>
-      <Button @click="load" variant="outline" size="sm" :disabled="loading">
-        <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
-      </Button>
+      <div>
+        <h2 class="text-2xl font-black tracking-tight">Customs</h2>
+        <p class="text-sm text-muted-foreground mt-0.5">Gestión de contenido personalizado para fans</p>
+      </div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button 
+              size="sm" 
+              @click="openCreateModal" 
+              :disabled="!isOnShift"
+              class="h-9"
+            >
+              <Plus class="mr-1.5 h-4 w-4" />
+              Nuevo Custom
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent v-if="!isOnShift">
+            <p class="text-xs">Necesitás estar en turno para crear customs</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
 
-    <!-- Active Customs -->
-    <div v-if="activeCustoms.length" class="space-y-3">
-      <div v-for="custom in activeCustoms" :key="custom.id">
-        <Card class="overflow-hidden">
-          <CardContent class="p-0">
-            <!-- Header -->
-            <div class="flex items-center justify-between p-4 pb-3">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white" 
-                     :class="typeConfig[custom.type].color">
-                  <component :is="typeConfig[custom.type].icon" class="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 class="font-medium">{{ typeConfig[custom.type].label }}</h4>
-                  <p class="text-sm text-muted-foreground">{{ custom.model?.name }}</p>
-                </div>
-              </div>
-              <Badge class="text-white" :class="statusConfig[custom.status].color">
-                {{ statusConfig[custom.status].label }}
-              </Badge>
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-4 gap-3">
+      <!-- Total -->
+      <div class="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/10">
+              <Package class="w-3.5 h-3.5 text-blue-500" />
             </div>
+            <p class="text-[10px] text-muted-foreground uppercase tracking-widest">Total</p>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <button class="w-4 h-4 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+                  <Info class="w-3 h-3 text-muted-foreground/40" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p class="text-xs">Total de customs en el sistema</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <p class="text-3xl font-black tabular-nums">{{ stats.total }}</p>
+      </div>
 
-            <!-- Content -->
-            <div class="px-4 pb-3">
-              <p class="text-sm text-muted-foreground mb-3">
-                {{ JSON.parse(custom.templateData || '{}').description || 'Sin descripción' }}
-              </p>
-              <div class="text-xs text-muted-foreground">
-                {{ formatDateTime(custom.createdAt) }}
-              </div>
+      <!-- Urgentes -->
+      <div class="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/10">
+              <AlertTriangle class="w-3.5 h-3.5 text-red-500" />
             </div>
+            <p class="text-[10px] text-muted-foreground uppercase tracking-widest">Urgentes</p>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <button class="w-4 h-4 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+                  <Info class="w-3 h-3 text-muted-foreground/40" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p class="text-xs">Customs marcados como urgentes que requieren atención inmediata</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <p class="text-3xl font-black tabular-nums text-red-500">{{ stats.urgent }}</p>
+      </div>
 
-            <!-- Actions -->
-            <div class="border-t bg-muted/30 p-3 flex gap-2">
-              <Button variant="outline" size="sm" @click="openDetail(custom)" class="flex-1">
-                <Eye class="w-4 h-4 mr-1" />
-                Ver detalles
-              </Button>
-              
-              <Button v-if="custom.status === 'READY_FOR_UPLOAD'" 
-                      variant="outline" size="sm" 
-                      @click="window.open(custom.driveLink, '_blank')">
-                <ExternalLink class="w-4 h-4 mr-1" />
-                Drive
-              </Button>
-              
-              <Button v-if="custom.status === 'READY_FOR_UPLOAD'" 
-                      size="sm" @click="openComplete(custom)" 
-                      class="bg-green-600 hover:bg-green-700 text-white">
-                <Send class="w-4 h-4 mr-1" />
-                Enviado
-              </Button>
+      <!-- Listos -->
+      <div class="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-500/10">
+              <TrendingUp class="w-3.5 h-3.5 text-amber-500" />
             </div>
-          </CardContent>
-        </Card>
+            <p class="text-[10px] text-muted-foreground uppercase tracking-widest">Listos</p>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <button class="w-4 h-4 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+                  <Info class="w-3 h-3 text-muted-foreground/40" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p class="text-xs">Customs listos para subir y enviar al fan</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <p class="text-3xl font-black tabular-nums text-amber-500">{{ stats.readyForUpload }}</p>
+      </div>
+
+      <!-- Completados -->
+      <div class="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/10">
+              <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
+            </div>
+            <p class="text-[10px] text-muted-foreground uppercase tracking-widest">Completados</p>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <button class="w-4 h-4 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+                  <Info class="w-3 h-3 text-muted-foreground/40" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p class="text-xs">Customs ya enviados al fan y completados</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <p class="text-3xl font-black tabular-nums text-emerald-500">{{ stats.completed }}</p>
       </div>
     </div>
 
-    <!-- Empty state -->
-    <div v-else-if="!loading" class="text-center py-12">
-      <CheckCircle class="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-      <h4 class="font-medium mb-2">No hay customs pendientes</h4>
-      <p class="text-sm text-muted-foreground">Todos los customs están completados</p>
-    </div>
-
-    <!-- Loading -->
-    <div v-if="loading" class="text-center py-12">
-      <RefreshCw class="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-      <p class="text-muted-foreground">Cargando customs...</p>
-    </div>
-
-    <!-- Completed (collapsed) -->
-    <div v-if="completedCustoms.length" class="pt-4 border-t">
-      <details class="group">
-        <summary class="flex items-center justify-between cursor-pointer p-2 rounded hover:bg-muted/50">
-          <span class="text-sm font-medium text-muted-foreground">
-            Completados ({{ completedCustoms.length }})
-          </span>
-          <CheckCircle class="w-4 h-4 text-green-500" />
-        </summary>
-        <div class="mt-2 space-y-2">
-          <div v-for="custom in completedCustoms.slice(0, 5)" :key="custom.id" 
-               class="flex items-center justify-between p-3 rounded border bg-muted/20 cursor-pointer hover:bg-muted/40"
-               @click="openDetail(custom)">
-            <div class="flex items-center gap-3">
-              <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs" 
-                   :class="typeConfig[custom.type].color">
-                <component :is="typeConfig[custom.type].icon" class="w-3 h-3" />
-              </div>
-              <div>
-                <p class="text-sm font-medium">{{ typeConfig[custom.type].label }}</p>
-                <p class="text-xs text-muted-foreground">{{ custom.model?.name }}</p>
-              </div>
-            </div>
-            <div class="text-xs text-muted-foreground">
-              {{ formatDateTime(custom.updatedAt || custom.createdAt) }}
-            </div>
+    <!-- Filters Card -->
+    <div class="rounded-2xl border border-border bg-card p-5 flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center bg-violet-500/10">
+            <Filter class="w-3.5 h-3.5 text-violet-500" />
           </div>
-        </div>
-      </details>
-    </div>
-
-    <!-- Detail Modal -->
-    <Dialog v-model:open="showDetail">
-      <DialogContent class="max-w-2xl max-h-[85vh]">
-        <DialogHeader class="pb-6">
-          <DialogTitle class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg" 
-                 :class="typeConfig[selectedCustom?.type]?.color">
-              <component :is="typeConfig[selectedCustom?.type]?.icon" class="w-6 h-6" />
-            </div>
-            <div>
-              <h3 class="text-xl font-bold">{{ typeConfig[selectedCustom?.type]?.label }}</h3>
-              <p class="text-sm text-muted-foreground mt-1">{{ selectedCustom?.model?.name }}</p>
-            </div>
-          </DialogTitle>
-        </DialogHeader>
-        
-        <Tabs default-value="info" class="w-full" v-if="selectedCustom">
-          <TabsList class="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="info" class="text-sm">Información</TabsTrigger>
-            <TabsTrigger value="history" class="text-sm">Historial</TabsTrigger>
-            <TabsTrigger value="actions" class="text-sm">Acciones</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="info" class="space-y-6">
-            <!-- Status Card -->
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 rounded-xl p-6 border">
-              <div class="grid grid-cols-2 gap-6">
-                <div class="flex items-center gap-3">
-                  <div class="w-3 h-3 rounded-full" :class="statusConfig[selectedCustom.status]?.color || 'bg-gray-500'"></div>
-                  <div>
-                    <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estado</p>
-                    <p class="font-semibold">{{ statusConfig[selectedCustom.status]?.label || selectedCustom.status }}</p>
-                  </div>
-                </div>
-                <div class="flex items-center gap-3">
-                  <Clock class="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Creado</p>
-                    <p class="font-semibold">{{ formatDateTime(selectedCustom.createdAt) }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Details Grid -->
-            <div class="space-y-4">
-              <h4 class="text-lg font-semibold">Detalles del Custom</h4>
-              <div class="grid gap-4">
-                <div v-for="(value, key) in JSON.parse(selectedCustom.templateData || '{}')" :key="key" 
-                     class="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                  <span class="font-medium text-muted-foreground">{{ translateField(key) }}</span>
-                  <span class="font-semibold text-right">{{ value }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Priority & Model -->
-            <div class="grid grid-cols-2 gap-4">
-              <div class="p-4 rounded-lg border bg-card">
-                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Prioridad</p>
-                <p class="font-bold text-lg" :class="getPriorityColor(selectedCustom.priority)">
-                  {{ translatePriority(selectedCustom.priority) }}
-                </p>
-              </div>
-              <div class="p-4 rounded-lg border bg-card">
-                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Modelo</p>
-                <p class="font-bold text-lg">{{ selectedCustom.model?.name || 'N/A' }}</p>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="history" class="space-y-6">
-            <div class="flex items-center justify-between">
-              <h4 class="text-lg font-semibold">Timeline de Cambios</h4>
-              <Badge variant="secondary" class="text-xs">
-                {{ selectedCustom.history?.length || 0 }} eventos
-              </Badge>
-            </div>
-            
-            <ScrollArea class="h-[400px] pr-4">
-              <div v-if="selectedCustom.history?.length" class="space-y-6">
-                <div class="relative">
-                  <!-- Timeline line -->
-                  <div class="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/50 to-muted"></div>
-                  
-                  <div v-for="(h, index) in selectedCustom.history" :key="h.id" class="relative flex gap-6 pb-6">
-                    <!-- Timeline dot with arrow -->
-                    <div class="relative z-10 flex flex-col items-center">
-                      <div class="w-16 h-16 rounded-full border-4 border-background shadow-lg flex items-center justify-center"
-                           :class="getTimelineColor(h.action)">
-                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                          <span class="text-sm font-bold text-white">
-                            {{ getUserInitial(h) }}
-                          </span>
-                        </div>
-                      </div>
-                      <!-- Arrow pointing to content -->
-                      <div v-if="index < selectedCustom.history.length - 1" 
-                           class="w-0 h-0 border-l-4 border-r-4 border-t-8 border-l-transparent border-r-transparent border-t-primary/30 mt-2"></div>
-                    </div>
-                    
-                    <!-- Timeline content -->
-                    <div class="flex-1 min-w-0 pt-2">
-                      <div class="bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div class="flex items-start justify-between mb-4">
-                          <div>
-                            <h5 class="font-bold text-base">{{ translateAction(h.action) }}</h5>
-                            <p class="text-sm text-muted-foreground mt-1">
-                              por {{ h.createdByUser?.username || h.username || 'Sistema' }}
-                            </p>
-                          </div>
-                          <span class="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                            {{ h.createdAt || h.timestamp ? formatDateTime(h.createdAt || h.timestamp) : formatDateTime(new Date()) }}
-                          </span>
-                        </div>
-                        <p v-if="h.comment" class="text-sm bg-muted/50 p-4 rounded-lg border-l-4 border-primary/30">
-                          "{{ h.comment }}"
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div v-else class="text-center py-12">
-                <Clock class="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-                <p class="text-muted-foreground">No hay historial disponible</p>
-              </div>
-            </ScrollArea>
-
-            <!-- Add Comment Section -->
-            <div class="border-t pt-6 space-y-4">
-              <h5 class="font-semibold">Agregar Comentario</h5>
-              <div class="flex gap-3">
-                <Textarea 
-                  v-model="newComment" 
-                  placeholder="Escribe un comentario..."
-                  class="flex-1"
-                  rows="2"
-                />
-                <Button 
-                  @click="addComment" 
-                  :disabled="!newComment.trim() || addingComment"
-                  class="shrink-0"
-                >
-                  <MessageSquare class="w-4 h-4 mr-2" />
-                  {{ addingComment ? 'Enviando...' : 'Enviar' }}
-                </Button>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="actions" class="space-y-6">
-            <h4 class="text-lg font-semibold">Acciones Disponibles</h4>
-            
-            <div class="space-y-4">
-              <div v-if="selectedCustom.driveLink">
-                <Button 
-                  variant="outline" 
-                  @click="window.open(selectedCustom.driveLink, '_blank')" 
-                  class="w-full justify-start h-16 text-left"
-                >
-                  <ExternalLink class="w-6 h-6 mr-4 text-blue-500" />
-                  <div>
-                    <div class="font-semibold">Abrir Drive</div>
-                    <div class="text-sm text-muted-foreground">Descargar contenido para enviar al fan</div>
-                  </div>
-                </Button>
-              </div>
-              
-              <div v-if="selectedCustom.status === 'READY_FOR_UPLOAD'">
-                <Button 
-                  @click="openComplete(selectedCustom); showDetail = false" 
-                  class="w-full justify-start h-16 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Send class="w-6 h-6 mr-4" />
-                  <div class="text-left">
-                    <div class="font-semibold">Marcar como Enviado</div>
-                    <div class="text-sm opacity-90">Confirmar que se envió el contenido al fan</div>
-                  </div>
-                </Button>
-              </div>
-              
-              <div v-if="!selectedCustom.driveLink && selectedCustom.status !== 'READY_FOR_UPLOAD' && selectedCustom.status !== 'COMPLETED'" 
-                   class="p-6 rounded-xl bg-muted/50 text-center border-2 border-dashed border-muted-foreground/20">
-                <Clock class="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                <p class="font-medium text-muted-foreground">Esperando que el contenido esté listo</p>
-                <p class="text-sm text-muted-foreground mt-2">El Content Manager subirá el contenido pronto</p>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-
-    <!-- Complete Modal -->
-    <Dialog v-model:open="showComplete">
-      <DialogContent class="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Confirmar Envío</DialogTitle>
-        </DialogHeader>
-        
-        <div class="space-y-4">
-          <div class="bg-green-50 dark:bg-green-950 p-3 rounded">
-            <p class="text-sm text-green-700 dark:text-green-300">
-              ¿Confirmás que enviaste el contenido al fan?
-            </p>
-          </div>
-          
           <div>
-            <Label>Comentario</Label>
-            <Textarea v-model="comment" rows="2" />
+            <p class="text-sm font-bold text-foreground leading-none">Filtros</p>
+            <p class="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">Buscar y filtrar customs</p>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" @click="showComplete = false">Cancelar</Button>
-          <Button @click="submitComplete" class="bg-green-600 hover:bg-green-700">
-            Confirmar
+        <div class="flex items-center gap-2">
+          <Button variant="ghost" size="sm" @click="resetFilters" class="h-8 text-xs">
+            Limpiar
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <Button variant="outline" size="sm" @click="load" :disabled="loading" class="h-8">
+            <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': loading }" />
+          </Button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-4 gap-3">
+        <div class="col-span-2">
+          <Input
+            v-model="searchQuery"
+            placeholder="Buscar por modelo, chatter, ID..."
+            class="h-9"
+          />
+        </div>
+        <Select v-model="filterModel">
+          <SelectTrigger class="h-9">
+            <SelectValue placeholder="Todas las modelos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las modelos</SelectItem>
+            <SelectItem v-for="m in models" :key="m.id" :value="m.id.toString()">
+              {{ m.name }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select v-model="filterStatus">
+          <SelectTrigger class="h-9">
+            <SelectValue placeholder="Todos los estados" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="CREATED">Creado</SelectItem>
+            <SelectItem value="SENT">Enviado</SelectItem>
+            <SelectItem value="READY_FOR_UPLOAD">Listo</SelectItem>
+            <SelectItem value="COMPLETED">Completado</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="rounded-2xl border border-border bg-card overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow class="hover:bg-transparent">
+            <TableHead class="text-xs font-semibold w-[200px]">Modelo</TableHead>
+            <TableHead class="text-xs font-semibold">Estado</TableHead>
+            <TableHead class="text-xs font-semibold">Tipo</TableHead>
+            <TableHead class="text-xs font-semibold">Reportó</TableHead>
+            <TableHead class="text-xs font-semibold">Envió</TableHead>
+            <TableHead class="text-xs font-semibold">Fecha</TableHead>
+            <TableHead class="text-right text-xs font-semibold px-6">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+
+        <TableBody v-if="!loading">
+          <TableRow 
+            v-for="c in paginatedCustoms" 
+            :key="c.id"
+            class="cursor-pointer hover:bg-muted/50 transition-colors border-l-4"
+            :class="getStatusBorderClass(c.status)"
+            @click="openSheet(c)"
+          >
+            <!-- Modelo -->
+            <TableCell class="py-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" :class="TYPE[c.type]?.bg || 'bg-zinc-500/10'">
+                  <component v-if="TYPE[c.type]?.icon" :is="TYPE[c.type]?.icon" class="w-3.5 h-3.5" :class="TYPE[c.type]?.cls" />
+                  <Package v-else class="w-3.5 h-3.5 text-zinc-500" />
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold truncate">{{ c.model?.name }}</p>
+                  <p class="text-[10px] text-muted-foreground">ID: {{ c.id }}</p>
+                </div>
+              </div>
+            </TableCell>
+
+            <!-- Estado -->
+            <TableCell class="py-3">
+              <Badge variant="outline" class="text-[10px]" :class="STATUS[c.status]?.cls">
+                {{ STATUS[c.status]?.label }}
+              </Badge>
+            </TableCell>
+
+            <!-- Tipo -->
+            <TableCell class="py-3">
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs">{{ TYPE[c.type]?.label }}</span>
+                <Badge v-if="c.priority === 'URGENT'" variant="outline"
+                  class="text-[10px] bg-red-500/10 text-red-500 border-red-500/20 gap-1">
+                  <AlertTriangle class="w-2.5 h-2.5" />
+                  URGENTE
+                </Badge>
+              </div>
+            </TableCell>
+
+            <!-- Reportó -->
+            <TableCell class="py-3">
+              <span class="text-xs text-muted-foreground">{{ c.createdByUsername || '—' }}</span>
+            </TableCell>
+
+            <!-- Envió -->
+            <TableCell class="py-3">
+              <span class="text-xs text-muted-foreground">{{ c.completedByUsername || '—' }}</span>
+            </TableCell>
+
+            <!-- Fecha -->
+            <TableCell class="py-3">
+              <span class="text-xs text-muted-foreground tabular-nums">{{ fmt(c.createdAt) }}</span>
+            </TableCell>
+
+            <!-- Acciones -->
+            <TableCell class="py-3 text-right px-6" @click.stop>
+              <div class="flex items-center justify-end gap-1.5">
+                <a v-if="c.driveLink" :href="c.driveLink" target="_blank">
+                  <Button variant="ghost" size="sm" class="h-8 gap-1.5 text-xs">
+                    <ExternalLink class="w-3 h-3" /> Drive
+                  </Button>
+                </a>
+                <Button size="sm" class="h-8 text-xs" @click="openSheet(c)">
+                  Ver detalles
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+
+      <!-- Loading -->
+      <div v-if="loading" class="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+        <Loader2 class="w-4 h-4 animate-spin" />
+        <span class="text-xs">Cargando...</span>
+      </div>
+
+      <!-- Empty state -->
+      <div
+        v-if="!loading && !paginatedCustoms.length"
+        class="flex flex-col items-center justify-center py-16 text-center"
+      >
+        <Clock class="mb-3 h-10 w-10 text-muted-foreground/30" />
+        <p class="text-sm font-medium">No se encontraron customs</p>
+        <p class="mt-1 text-xs text-muted-foreground">
+          {{ searchQuery || filterModel !== 'all' || filterStatus !== 'all' 
+            ? 'Probá ajustando los filtros' 
+            : 'Los customs aparecerán aquí cuando se creen' }}
+        </p>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="!loading && totalPages > 1" class="flex items-center justify-between px-5 py-4 border-t border-border bg-muted/20">
+        <p class="text-xs text-muted-foreground">
+          Mostrando {{ (currentPage - 1) * itemsPerPage + 1 }} a 
+          {{ Math.min(currentPage * itemsPerPage, filteredCustoms.length) }} de 
+          {{ filteredCustoms.length }} customs
+        </p>
+        <div class="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="currentPage === 1"
+            @click="currentPage--"
+            class="h-8"
+          >
+            <ChevronLeft class="h-3.5 w-3.5" />
+          </Button>
+          <span class="text-xs font-medium px-2">
+            {{ currentPage }} / {{ totalPages }}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="currentPage === totalPages"
+            @click="currentPage++"
+            class="h-8"
+          >
+            <ChevronRight class="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <!-- Sheet de detalle -->
+  <CustomDetailSheet
+    :open="sheetOpen"
+    :custom="selected"
+    @update:open="sheetOpen = $event"
+    @completed="onCompleted"
+    @commented="onCommented"
+  />
+
+  <!-- Modal de creación -->
+  <CreateCustomModal
+    :open="createModalOpen"
+    :models="models"
+    @update:open="createModalOpen = $event"
+    @created="onCreated"
+  />
 </template>

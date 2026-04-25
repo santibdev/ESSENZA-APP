@@ -19,8 +19,15 @@ async function req(path, options = {}) {
       ...options.headers
     }
   })
-  if (!res.ok) throw await res.json().catch(() => ({}))
-  return res.status === 204 ? null : res.json()
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    try { throw JSON.parse(errText) } catch { throw { message: errText || 'Error de red' } }
+  }
+  if (res.status === 204) return null
+  
+  const text = await res.text().catch(() => '')
+  if (!text) return null
+  try { return JSON.parse(text) } catch { return text }
 }
 
 export const customsApi = {

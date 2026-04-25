@@ -692,13 +692,12 @@ onUnmounted(() => {
               </template>
               <!-- Chatter sees their customs list -->
               <template v-else>
-                <div class="flex items-center justify-between mb-2">
-                  <div />
-                  <Button size="sm" @click="showCreateCustom = true" class="gap-1.5">
-                    <Plus class="w-3.5 h-3.5" /> Nuevo Custom
-                  </Button>
-                </div>
-                <CustomsList :model-ids="assignedModels.map(m => m.id)" />
+                
+                <CustomsList 
+                  :model-ids="assignedModels.map(m => m.id)" 
+                  :models="assignedModels"
+                  :is-on-shift="isWorking"
+                />
                 <CreateCustomModal v-model:open="showCreateCustom" :models="assignedModels" @created="() => {}" />
               </template>
             </template>
