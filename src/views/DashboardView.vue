@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
@@ -74,6 +74,7 @@ const isExtraHoursSelection = ref(false)
 
 const showStartModal = ref(false)
 const showReportModal = ref(false)
+const errorDialog = ref<{ show: boolean; message: string }>({ show: false, message: "" })
 
 const userSchedule = ref<any>(null)
 const userOffDays = ref('')
@@ -253,6 +254,7 @@ const authHeaders = () => ({
 })
 
 function startWorkTimer() {
+  if (timerInterval) clearInterval(timerInterval)
   let lastTick = Date.now()
   timerInterval = setInterval(() => {
     if (!isWorking.value || isPaused.value) { if (timerInterval) clearInterval(timerInterval); return }
@@ -382,7 +384,7 @@ async function submitEndShift(startExtras: boolean) {
 
     const res = await fetch(`${apiUrl}/shifts/${currentShiftId.value}/end`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) })
     if (res.status === 412) { const e = await res.json(); toast.error(e.message || 'El turno está incompleto.'); showReportModal.value = false; return }
-    if (!res.ok) throw new Error('Server error')
+    if (!res.ok) { const errBody = await res.json().catch(() => null); throw new Error(errBody?.message || errBody?.error || ("HTTP " + res.status)) }
 
     // Save to logbook for handoff view
     if (filteredReports.length > 0) {
@@ -403,7 +405,7 @@ async function submitEndShift(startExtras: boolean) {
 
     if (startExtras) { toast.info('Turno cerrado. Iniciando extras...'); setTimeout(() => startShift(true), 1200) }
     else { toast.success('Turno finalizado correctamente.'); currentShiftId.value = null }
-  } catch (e) { console.error(e); toast.error('Error al enviar el reporte.') }
+  } catch (e: any) { console.error(e); errorDialog.value = { show: true, message: e?.message || String(e) } }
 }
 
 async function toggleBreak() {
@@ -785,6 +787,22 @@ onUnmounted(() => {
         </DialogScrollContent>
       </Dialog>
 
+
+    <!-- Error Dialog -->
+    <Dialog v-model:open="errorDialog.show">
+      <DialogContent class="max-w-lg">
+        <DialogHeader>
+          <DialogTitle class="text-destructive flex items-center gap-2">
+            <AlertTriangle class="w-5 h-5" /> Error al enviar el reporte
+          </DialogTitle>
+          <DialogDescription class="sr-only">Detalle del error</DialogDescription>
+        </DialogHeader>
+        <div class="rounded-lg bg-zinc-950 border border-red-900/40 p-4 font-mono text-xs text-red-400 whitespace-pre-wrap break-all max-h-64 overflow-y-auto">{{ errorDialog.message }}</div>
+        <DialogFooter>
+          <Button variant="outline" @click="errorDialog.show = false">Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   </TooltipProvider>
 </template>
