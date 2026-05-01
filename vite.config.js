@@ -82,6 +82,10 @@ export default defineConfig({
         chunkFileNames: 'js/[hash:8].js',
         entryFileNames: 'js/[hash:8].js',
         assetFileNames: (assetInfo) => {
+          // Handle cases where name might be undefined
+          if (!assetInfo.name) {
+            return 'assets/[hash:8][extname]'
+          }
           const info = assetInfo.name.split('.')
           const ext = info[info.length - 1]
           if (/\.(css)$/.test(assetInfo.name)) {
