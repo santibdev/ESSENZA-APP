@@ -33,10 +33,17 @@ export default defineConfig({
         drop_console: true,
         drop_debugger: true,
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
-        passes: 2
+        passes: 3, // Increased from 2 to 3 for better compression
+        unsafe: true,
+        unsafe_comps: true,
+        unsafe_math: true,
+        unsafe_methods: true
       },
       mangle: {
-        safari10: true
+        safari10: true,
+        properties: {
+          regex: /^_/
+        }
       },
       format: {
         comments: false
@@ -45,11 +52,31 @@ export default defineConfig({
     // Optimize chunk splitting
     rollupOptions: {
       output: {
-        manualChunks: {
+        manualChunks: (id) => {
           // Separate vendor chunks
-          'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          'ui-vendor': ['radix-vue', 'reka-ui', 'lucide-vue-next'],
-          'utils-vendor': ['@vueuse/core', 'clsx', 'tailwind-merge']
+          if (id.includes('node_modules')) {
+            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router')) {
+              return 'vue-vendor'
+            }
+            if (id.includes('radix-vue') || id.includes('reka-ui') || id.includes('lucide-vue-next')) {
+              return 'ui-vendor'
+            }
+            if (id.includes('@vueuse') || id.includes('clsx') || id.includes('tailwind-merge')) {
+              return 'utils-vendor'
+            }
+            // All other node_modules
+            return 'vendor'
+          }
+          // Split large components
+          if (id.includes('/components/dashboard/')) {
+            return 'dashboard'
+          }
+          if (id.includes('/components/customs/')) {
+            return 'customs'
+          }
+          if (id.includes('/components/ui/')) {
+            return 'ui'
+          }
         },
         // Smaller chunk names
         chunkFileNames: 'js/[hash:8].js',
@@ -60,7 +87,7 @@ export default defineConfig({
           if (/\.(css)$/.test(assetInfo.name)) {
             return `css/[hash:8].${ext}`
           }
-          if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
+          if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico|webp)$/i.test(assetInfo.name)) {
             return `img/[hash:8].${ext}`
           }
           return `assets/[hash:8].${ext}`
@@ -73,12 +100,25 @@ export default defineConfig({
     sourcemap: false,
     // Optimize CSS
     cssCodeSplit: true,
+    cssMinify: 'lightningcss',
     // Reduce asset inline threshold
-    assetsInlineLimit: 2048
+    assetsInlineLimit: 4096, // Increased from 2048 to inline more small assets
+    // Target modern browsers for smaller output
+    target: 'es2020',
+    // Optimize module preload
+    modulePreload: {
+      polyfill: false
+    }
   },
   // Optimize dependencies
   optimizeDeps: {
-    include: ['vue', 'vue-router', 'pinia'],
-    exclude: ['@vueuse/core']
+    include: ['vue', 'vue-router', 'pinia', 'vue-sonner'],
+    exclude: []
+  },
+  // Enable esbuild optimizations
+  esbuild: {
+    drop: ['console', 'debugger'],
+    legalComments: 'none',
+    treeShaking: true
   }
 })
