@@ -15,7 +15,10 @@
     "clean": "rm -rf dist node_modules/.vite",
     "deploy": "node scripts/deploy.js",
     "deploy:minor": "node scripts/deploy.js minor",
-    "deploy:major": "node scripts/deploy.js major"
+    "deploy:major": "node scripts/deploy.js major",
+    "release": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major"
   },
   "dependencies": {
     "active-win": "^8.2.1",
