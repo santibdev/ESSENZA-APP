@@ -1,6 +1,6 @@
 {
   "name": "essenzamodels",
-  "version": "1.2.22",
+  "version": "1.0.101",
   "author": "SB TECHNOLOGY",
   "type": "module",
   "description": "Corporate Communication Platform",
@@ -15,10 +15,7 @@
     "clean": "rm -rf dist node_modules/.vite",
     "deploy": "node scripts/deploy.js",
     "deploy:minor": "node scripts/deploy.js minor",
-    "deploy:major": "node scripts/deploy.js major",
-    "release": "node scripts/release.js patch",
-    "release:minor": "node scripts/release.js minor",
-    "release:major": "node scripts/release.js major"
+    "deploy:major": "node scripts/deploy.js major"
   },
   "dependencies": {
     "active-win": "^8.2.1",
@@ -55,10 +52,9 @@
   "build": {
     "appId": "com.essenzamodels.monitor",
     "productName": "ESSENZA MODELS",
-    "asar": true,
-    "asarUnpack": [
-      "node_modules/electron-updater/**/*"
-    ],
+    "asar": {
+      "smartUnpack": false
+    },
     "compression": "maximum",
     "directories": {
       "buildResources": "public",
@@ -68,6 +64,7 @@
       "dist/**/*",
       "electron/**/*",
       "package.json",
+      "!node_modules/**/*",
       "!src/**/*",
       "!scripts/**/*",
       "!*.md",
