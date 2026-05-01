@@ -9,3 +9,28 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.mount('#app')
+
+// ─── Auto-Updater Debug Listeners ────────────────────────────────────────────
+if (window.electronAPI?.updater) {
+  console.log('[Updater] API available, setting up listeners...')
+  
+  window.electronAPI.updater.onStatusChange((data) => {
+    console.log('[Updater] Status:', data.type, data)
+    
+    if (data.type === 'available') {
+      console.log(`[Updater] ✅ Nueva versión ${data.info.version} disponible!`)
+    } else if (data.type === 'ready') {
+      console.log(`[Updater] ✅ Versión ${data.info.version} lista para instalar!`)
+    } else if (data.type === 'error') {
+      console.error('[Updater] ❌ Error:', data.message)
+    }
+  })
+  
+  window.electronAPI.updater.onProgress((data) => {
+    console.log(`[Updater] Descargando: ${data.percent}%`)
+  })
+  
+  console.log('[Updater] Listeners configurados')
+} else {
+  console.warn('[Updater] API no disponible (modo desarrollo?)')
+}
