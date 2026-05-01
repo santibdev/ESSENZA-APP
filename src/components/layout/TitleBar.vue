@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, defineAsyncComponent } from 'vue'
 import { Minus, X, Maximize2, Minimize2 } from 'lucide-vue-next'
-import ThemeToggle from './ThemeToggle.vue'
 import { useThemeStore } from '@/stores/theme'
 import darkLogo from '@/assets/img/logo-full-white.png'
 import lightLogo from '@/assets/img/logo-full-dark.png'
+
+const ThemeToggleComponent = defineAsyncComponent(() => import('./ThemeToggle.vue'))
 
 const themeStore = useThemeStore()
 const isMaximized = ref(false)
@@ -39,7 +40,7 @@ onBeforeUnmount(() => cleanupFn?.())
 
     <!-- Controls -->
     <div class="flex items-center gap-1" style="-webkit-app-region: no-drag">
-      <ThemeToggle />
+      <ThemeToggleComponent />
 
       <div class="w-px h-5 bg-border mx-1" />
 
