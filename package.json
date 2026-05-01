@@ -1,6 +1,6 @@
 {
   "name": "essenzamodels",
-  "version": "1.0.101",
+  "version": "1.0.3",
   "author": "SB TECHNOLOGY",
   "type": "module",
   "description": "Corporate Communication Platform",
@@ -52,9 +52,7 @@
   "build": {
     "appId": "com.essenzamodels.monitor",
     "productName": "ESSENZA MODELS",
-    "asar": {
-      "smartUnpack": false
-    },
+    "asar": true,
     "compression": "maximum",
     "directories": {
       "buildResources": "public",
@@ -64,7 +62,6 @@
       "dist/**/*",
       "electron/**/*",
       "package.json",
-      "!node_modules/**/*",
       "!src/**/*",
       "!scripts/**/*",
       "!*.md",
