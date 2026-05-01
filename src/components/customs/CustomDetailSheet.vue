@@ -448,7 +448,7 @@ function historyIconClass(action) {
           </div>
 
           <!-- Comment box (abajo fijo) -->
-          <div class="shrink-0 space-y-2 border-t px-3 py-3">
+          <div v-if="custom.status !== 'COMPLETED'" class="shrink-0 space-y-2 border-t px-3 py-3">
             <p class="text-xs font-medium text-muted-foreground">Agregar comentario</p>
             <Textarea
               v-model="comment"
@@ -466,6 +466,14 @@ function historyIconClass(action) {
               <MessageSquare v-else class="h-3.5 w-3.5" />
               {{ commenting ? 'Enviando…' : 'Enviar comentario' }}
             </Button>
+          </div>
+          
+          <!-- Completed message (cuando está completado) -->
+          <div v-else class="shrink-0 border-t px-3 py-3">
+            <div class="flex items-center gap-2 rounded-lg bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+              <CheckCircle2 class="h-4 w-4 text-green-500" />
+              <span>Este custom está completado y no acepta más comentarios</span>
+            </div>
           </div>
 
         </div>

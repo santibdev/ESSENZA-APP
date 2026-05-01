@@ -1,6 +1,6 @@
 {
   "name": "essenzamodels",
-  "version": "1.1.91",
+  "version": "1.0.0",
   "author": "SB TECHNOLOGY",
   "type": "module",
   "description": "Corporate Communication Platform",
@@ -12,10 +12,14 @@
     "preview": "vite preview",
     "dist": "npm run build && electron-builder --publish always",
     "analyze": "node scripts/optimize-assets.js && node scripts/analyze-bundle.js",
-    "clean": "rm -rf dist node_modules/.vite"
+    "clean": "rm -rf dist node_modules/.vite",
+    "deploy": "node scripts/deploy.js",
+    "deploy:minor": "node scripts/deploy.js minor",
+    "deploy:major": "node scripts/deploy.js major"
   },
   "dependencies": {
     "active-win": "^8.2.1",
+    "driver.js": "^1.4.0",
     "electron-updater": "^6.8.3"
   },
   "devDependencies": {
@@ -121,7 +125,13 @@
       "uninstallDisplayName": "Desinstalar ESSENZA MODELS",
       "installerIcon": "public/essenza.ico",
       "uninstallerIcon": "public/essenza.ico",
-      "differentialPackage": true
+      "differentialPackage": true,
+      "allowElevation": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "menuCategory": "ESSENZA MODELS",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
     }
   }
 }

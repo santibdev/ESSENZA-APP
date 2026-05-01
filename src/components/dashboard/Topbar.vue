@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Menu, Search, Command, Radio } from 'lucide-vue-next'
+import { Menu, Search, Command, Radio, HelpCircle } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const props = defineProps<{
   activeTab: string
@@ -14,6 +15,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'toggleSidebar'): void
+  (e: 'startTour'): void
 }>()
 
 const formatTime = (secs: number): string => {
@@ -63,6 +65,26 @@ const getTabLabel = (tab: string) => {
 
     <!-- Right Side: Session Hub -->
     <div class="flex items-center gap-4 shrink-0">
+      <!-- Tour Button -->
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button 
+              data-tour="help-button"
+              @click="emit('startTour')" 
+              variant="ghost" 
+              size="icon"
+              class="text-muted-foreground hover:text-foreground"
+            >
+              <HelpCircle class="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p class="text-xs">Ver tour de bienvenida</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      
       <!-- Session Capsule -->
       <div
         class="flex items-center gap-4 px-5 py-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-950/50 backdrop-blur-sm shadow-sm transition-all hover:bg-white dark:hover:bg-zinc-950">

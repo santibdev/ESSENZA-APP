@@ -1,35 +1,56 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Download, RefreshCw, X } from 'lucide-vue-next'
+import { Download, RefreshCw, X, CheckCircle, AlertCircle } from 'lucide-vue-next'
 
-const state = ref('idle') // 'idle' | 'downloading' | 'ready'
+const state = ref('idle') // 'idle' | 'downloading' | 'ready' | 'error'
 const updateInfo = ref(null)
 const dismissed = ref(false)
+const downloadProgress = ref(0)
+const message = ref('')
 
 let cleanupStatus = null
+let cleanupProgress = null
 
 onMounted(() => {
   if (!window.electronAPI?.updater) return
 
-  cleanupStatus = window.electronAPI.updater.onStatusChange(({ type, info }) => {
+  cleanupStatus = window.electronAPI.updater.onStatusChange(({ type, info, message: msg }) => {
     if (type === 'available') {
       updateInfo.value = info
       state.value = 'downloading'
       dismissed.value = false
+      message.value = msg || `Descargando v${info?.version}...`
     } else if (type === 'ready') {
       updateInfo.value = info
       state.value = 'ready'
       dismissed.value = false
+      message.value = msg || `v${info?.version} lista para instalar`
+    } else if (type === 'error') {
+      state.value = 'error'
+      dismissed.value = false
+      message.value = msg || 'Error al buscar actualizaciones'
     }
+  })
+
+  cleanupProgress = window.electronAPI.updater.onProgress(({ percent }) => {
+    downloadProgress.value = percent
   })
 })
 
 onUnmounted(() => {
   cleanupStatus?.()
+  cleanupProgress?.()
 })
 
 function installNow() {
   window.electronAPI.updater.installNow()
+}
+
+function checkNow() {
+  window.electronAPI.updater.checkNow()
+  state.value = 'downloading'
+  message.value = 'Buscando actualizaciones...'
+  dismissed.value = false
 }
 
 function dismiss() {
@@ -42,26 +63,32 @@ function dismiss() {
     <div
       v-if="!dismissed && state !== 'idle'"
       class="update-banner"
-      :class="{ 'is-ready': state === 'ready' }"
+      :class="{ 
+        'is-ready': state === 'ready',
+        'is-error': state === 'error'
+      }"
     >
       <div class="banner-content">
         <div class="banner-icon">
           <RefreshCw v-if="state === 'downloading'" class="icon spin" :size="15" />
+          <CheckCircle v-else-if="state === 'ready'" class="icon" :size="15" />
+          <AlertCircle v-else-if="state === 'error'" class="icon" :size="15" />
           <Download v-else class="icon" :size="15" />
         </div>
 
         <div class="banner-text">
-          <span v-if="state === 'downloading'">
-            Descargando actualización <strong>v{{ updateInfo?.version }}</strong> en segundo plano...
-          </span>
-          <span v-else>
-            ¡Actualización <strong>v{{ updateInfo?.version }}</strong> lista! Reiniciá para aplicarla.
-          </span>
+          <span>{{ message }}</span>
+          <div v-if="state === 'downloading' && downloadProgress > 0" class="progress-bar">
+            <div class="progress-fill" :style="{ width: `${downloadProgress}%` }"></div>
+          </div>
         </div>
 
         <div class="banner-actions">
           <button v-if="state === 'ready'" class="btn-install" @click="installNow">
             Instalar ahora
+          </button>
+          <button v-if="state === 'error'" class="btn-retry" @click="checkNow">
+            Reintentar
           </button>
           <button class="btn-dismiss" @click="dismiss" title="Cerrar">
             <X :size="13" />
@@ -99,6 +126,15 @@ function dismiss() {
   background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.07), transparent);
 }
 
+.update-banner.is-error {
+  background: linear-gradient(90deg, #2d1b1b 0%, #3d1a1a 50%, #2d1b1b 100%);
+  border-bottom-color: rgba(239, 68, 68, 0.4);
+}
+
+.update-banner.is-error::before {
+  background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.07), transparent);
+}
+
 .banner-content {
   display: flex;
   align-items: center;
@@ -122,6 +158,10 @@ function dismiss() {
   color: #34d399;
 }
 
+.is-error .icon {
+  color: #f87171;
+}
+
 .spin {
   animation: spin 1.4s linear infinite;
 }
@@ -137,13 +177,28 @@ function dismiss() {
   color: #6ee7b7;
 }
 
-.banner-text strong {
-  color: #e0e7ff;
-  font-weight: 600;
+.is-error .banner-text {
+  color: #fca5a5;
 }
 
-.is-ready .banner-text strong {
-  color: #d1fae5;
+.progress-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #818cf8;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.is-ready .progress-fill {
+  background: #34d399;
 }
 
 .banner-actions {
@@ -153,10 +208,7 @@ function dismiss() {
   flex-shrink: 0;
 }
 
-.btn-install {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  color: #34d399;
+.btn-install, .btn-retry {
   font-size: 11px;
   font-weight: 600;
   padding: 4px 12px;
@@ -164,12 +216,31 @@ function dismiss() {
   cursor: pointer;
   transition: all 0.2s ease;
   letter-spacing: 0.02em;
+  border: 1px solid;
+}
+
+.btn-install {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
 }
 
 .btn-install:hover {
   background: rgba(16, 185, 129, 0.25);
   border-color: rgba(16, 185, 129, 0.7);
   color: #a7f3d0;
+}
+
+.btn-retry {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.btn-retry:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.7);
+  color: #fca5a5;
 }
 
 .btn-dismiss {

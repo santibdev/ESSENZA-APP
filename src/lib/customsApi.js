@@ -43,7 +43,7 @@ export const customsApi = {
         }
       }
     })
-    return req(`?${q}`)
+    return req(`/detailed?${q}`)
   },
   get: (id) => req(`/${id}`),
   updateStatus: (id, data) => req(`/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
+import { useOnboardingTour } from '@/composables/useOnboardingTour'
 
 // UI Primitives
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -60,6 +61,13 @@ interface ModelReport {
 const auth = useAuthStore()
 const router = useRouter()
 const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://service-production-1ef2.up.railway.app/api/v1'
+const { startTour, hasCompletedTour, markAsCompleted } = useOnboardingTour((tab) => {
+  activeTab.value = tab
+})
+
+function startTourManually() {
+  startTour()
+}
 
 // --- State ---
 const isWorking = ref(false)
@@ -98,6 +106,7 @@ const emergencyReason = ref('')
 const perModelReports = ref<ModelExitReport[]>([])
 const selectedModelReportIdx = ref(0)
 const shiftTemplates = ref<any[]>([])
+const isSubmittingEndShift = ref(false)
 const modelReports = ref<Record<number, ModelReport>>({})
 const dailySummary = ref<any>(null)
 const shiftStartTime = ref<string | null>(null)
@@ -342,6 +351,13 @@ function formatTime(secs: number): string {
 }
 
 async function submitEndShift(startExtras: boolean) {
+  // Prevent multiple simultaneous submissions
+  if (isSubmittingEndShift.value) {
+    return
+  }
+  
+  isSubmittingEndShift.value = true
+  
   try {
     let payload: any = {}
     const finalObs = isForceExit.value
@@ -405,7 +421,13 @@ async function submitEndShift(startExtras: boolean) {
 
     if (startExtras) { toast.info('Turno cerrado. Iniciando extras...'); setTimeout(() => startShift(true), 1200) }
     else { toast.success('Turno finalizado correctamente.'); currentShiftId.value = null }
-  } catch (e: any) { console.error(e); errorDialog.value = { show: true, message: e?.message || String(e) } }
+  } catch (e: any) { 
+    console.error(e); 
+    errorDialog.value = { show: true, message: e?.message || String(e) } 
+  } finally {
+    // Always reset the submission state, even if there was an error
+    isSubmittingEndShift.value = false
+  }
 }
 
 async function toggleBreak() {
@@ -599,6 +621,13 @@ onMounted(async () => {
       customsNotifications.start()
     }
   } catch { }
+  
+  // Start onboarding tour if first time
+  setTimeout(() => {
+    if (!hasCompletedTour()) {
+      startTour()
+    }
+  }, 1500) // Delay to let the UI render
 })
 
 onUnmounted(() => {
@@ -621,11 +650,12 @@ onUnmounted(() => {
         <Topbar :active-tab="activeTab" :is-working="isWorking" :is-paused="isPaused" :status-label="statusLabel"
           :status-color="statusColor" :shift-target="missingShiftSeconds" @toggle-sidebar="sidebarOpen = !sidebarOpen"
           @start-shift="isExtraHoursSelection = $event; showStartModal = true" @toggle-break="toggleBreak"
-          @end-shift="endShiftPrompt" />
+          @end-shift="endShiftPrompt" @start-tour="startTourManually" />
+        
         <div
           :class="['flex-1 bg-muted/30 dark:bg-zinc-950 relative', activeTab === 'context' ? 'overflow-hidden' : 'overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700']">
           <!-- Textura de grilla sutil -->
-          <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-[0.03]" viewBox="0 0 400 400"
+          <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-[0.03] z-0" viewBox="0 0 400 400"
             preserveAspectRatio="none">
             <defs>
               <pattern id="dashboard-grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -647,27 +677,44 @@ onUnmounted(() => {
 
               <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Modular Tracker/Timer Card -->
-                <TrackerCard :effective-work-seconds="effectiveWorkSeconds" :is-working="isWorking"
-                  :is-paused="isPaused" :status-label="statusLabel" :status-dot="statusDot"
-                  :shift-start-time="shiftStartTime ?? undefined" :daily-summary="dailySummary ?? undefined"
-                  :schedule-info="userSchedule ?? undefined" :is-within-schedule="isWithinSchedule"
-                  @toggle-break="toggleBreak" @start-shift="isExtraHoursSelection = $event; showStartModal = true"
-                  @end-shift="endShiftPrompt" />
+                <TrackerCard 
+                  data-tour="shift-status"
+                  :effective-work-seconds="effectiveWorkSeconds" 
+                  :is-working="isWorking"
+                  :is-paused="isPaused" 
+                  :status-label="statusLabel" 
+                  :status-dot="statusDot"
+                  :shift-start-time="shiftStartTime ?? undefined" 
+                  :daily-summary="dailySummary ?? undefined"
+                  :schedule-info="userSchedule ?? undefined" 
+                  :is-within-schedule="isWithinSchedule"
+                  @toggle-break="toggleBreak" 
+                  @start-shift="isExtraHoursSelection = $event; showStartModal = true"
+                  @end-shift="endShiftPrompt" 
+                />
 
                 <!-- Modular Notes/Observations Card -->
-                <NotesCard v-model="observations" />
+                <NotesCard 
+                  data-tour="logbook"
+                  v-model="observations" 
+                />
               </div>
 
               <!-- Model Reports Section — not for Content Manager -->
-              <ModelReportsSection v-if="!isContentManager" v-model:model-reports="modelReports" :assigned-models="assignedModels"
-                :is-working="isWorking" />
+              <ModelReportsSection 
+                data-tour="models-tabs"
+                v-if="!isContentManager" 
+                v-model:model-reports="modelReports" 
+                :assigned-models="assignedModels"
+                :is-working="isWorking" 
+              />
 
               <MarketingPanel v-if="isMarketing" ref="marketingPanelRef" />
             </template>
 
             <template v-else-if="activeTab === 'context'">
               <div class="w-full h-full flex flex-col">
-                <ModelKnowledgeBase :assigned-models="assignedModels" />
+                <ModelKnowledgeBase data-tour="knowledge-base" :assigned-models="assignedModels" />
               </div>
             </template>
 
@@ -683,7 +730,7 @@ onUnmounted(() => {
 
             <!-- Case: HISTORY -->
             <template v-else-if="activeTab === 'history'">
-              <UserShiftHistory />
+              <UserShiftHistory data-tour="history-section" />
             </template>
 
             <!-- Case: CUSTOMS -->
@@ -696,6 +743,7 @@ onUnmounted(() => {
               <template v-else>
                 
                 <CustomsList 
+                  data-tour="customs"
                   :model-ids="assignedModels.map(m => m.id)" 
                   :models="assignedModels"
                   :is-on-shift="isWorking"
@@ -776,12 +824,14 @@ onUnmounted(() => {
 
           <DialogFooter class="flex flex-col sm:flex-row gap-2">
             <Button v-if="!isExtraHours && !isForceExit" @click="submitEndShift(true)" variant="secondary"
+              :disabled="isSubmittingEndShift"
               class="w-full sm:w-auto order-2 sm:order-1">
-              Cerrar e Iniciar Extras
+              {{ isSubmittingEndShift ? 'Cerrando...' : 'Cerrar e Iniciar Extras' }}
             </Button>
             <Button @click="submitEndShift(false)" :variant="isForceExit ? 'destructive' : 'default'"
+              :disabled="isSubmittingEndShift"
               class="w-full sm:w-auto text-white order-1 sm:order-2 font-bold shadow-lg shadow-primary/20">
-              Finalizar Turno
+              {{ isSubmittingEndShift ? 'Finalizando...' : 'Finalizar Turno' }}
             </Button>
           </DialogFooter>
         </DialogScrollContent>

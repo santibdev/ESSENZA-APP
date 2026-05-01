@@ -29,8 +29,47 @@ const contentTags = ref<any[]>([])
 const spenders = ref<any[]>([])
 const logbookEntries = ref<any[]>([])
 const loadingAnalytics = ref(false)
+const userNamesCache = ref<Record<string, string>>({})
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://service-production-1ef2.up.railway.app/api/v1'
+
+// Función para obtener el nombre real de un usuario por username
+async function fetchUserRealName(username: string): Promise<string> {
+  if (!username) return username
+  
+  // Check cache first
+  if (userNamesCache.value[username]) {
+    return userNamesCache.value[username]
+  }
+  
+  try {
+    const res = await fetch(`${apiUrl}/admin/users`, {
+      headers: { 'Authorization': `Bearer ${auth.user?.token}` }
+    })
+    if (res.ok) {
+      const users = await res.json()
+      const user = users.find((u: any) => u.username === username)
+      if (user?.name) {
+        userNamesCache.value[username] = user.name
+        return user.name
+      }
+    }
+  } catch (error) {
+    console.log(`No se pudo obtener el nombre real para ${username}`)
+  }
+  
+  // Fallback: mapeo manual para usuarios conocidos
+  const knownUsers: Record<string, string> = {
+    'yisus': 'Yisus',
+    'admin': 'Administrador', 
+    'marketing': 'Marketing',
+    'support': 'Soporte',
+  }
+  
+  const displayName = knownUsers[username] || username
+  userNamesCache.value[username] = displayName
+  return displayName
+}
 
 async function fetchModels() {
   loading.value = true
@@ -74,7 +113,16 @@ async function loadModelAnalytics(modelId: number) {
 
     if (tagsRes.ok) contentTags.value = await tagsRes.json()
     if (spendersRes.ok) spenders.value = await spendersRes.json()
-    if (logbookRes.ok) logbookEntries.value = await logbookRes.json()
+    if (logbookRes.ok) {
+      const entries = await logbookRes.json()
+      // Process author names to show real names instead of usernames
+      logbookEntries.value = await Promise.all(
+        entries.map(async (entry: any) => ({
+          ...entry,
+          displayAuthorName: await fetchUserRealName(entry.authorName)
+        }))
+      )
+    }
   } catch (err) {
     console.error('Error loading analytics:', err)
   } finally {
@@ -556,9 +604,9 @@ function getAvatarColor(name: string) {
                       <div class="flex items-center gap-2">
                         <div
                           class="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                          {{ entry.authorName?.charAt(0) }}
+                          {{ entry.displayAuthorName?.charAt(0) }}
                         </div>
-                        <span class="text-xs font-bold">{{ entry.authorName }}</span>
+                        <span class="text-xs font-bold">{{ entry.displayAuthorName }}</span>
                         <span class="text-[10px] text-muted-foreground font-medium">• {{ new
                           Date(entry.timestamp).toLocaleString() }}</span>
                       </div>

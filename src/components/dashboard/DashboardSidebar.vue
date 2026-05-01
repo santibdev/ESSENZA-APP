@@ -74,8 +74,8 @@ function selectTab(id: TabType) {
       <!-- Brand Wrapper -->
       <div class="px-5 pt-6 pb-4">
         <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-white flex items-center justify-center shrink-0">
-            <span class="text-white dark:text-zinc-900 text-xs font-black tracking-tight uppercase">E</span>
+          <div class="w-8 h-8">
+            <img src="..\..\..\public\essenza.ico"></img>
           </div>
           <div>
             <p class="text-sm font-black text-zinc-900 dark:text-zinc-50 leading-none tracking-tight uppercase">
@@ -131,6 +131,7 @@ function selectTab(id: TabType) {
       <div class="p-4 pb-6 space-y-3 shrink-0">
         <!-- User Profile (El diseño que te gustó) -->
         <div
+          data-tour="user-menu"
           class="flex items-center gap-3 px-3 py-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800/40 relative group/user">
           <span
             class="w-10 h-10 rounded-lg bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 shadow-sm transition-transform duration-300 group-hover/user:scale-105 flex items-center justify-center">

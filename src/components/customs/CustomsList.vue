@@ -25,6 +25,49 @@ const { customs, loading, urgent, byModel, completed, load, refreshOne } = useCu
   () => props.modelIds
 )
 
+// User names cache
+const userNamesCache = ref({})
+const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://service-production-1ef2.up.railway.app/api/v1'
+
+// Función para obtener el nombre real de un usuario por username
+async function fetchUserRealName(username) {
+  if (!username) return username
+  
+  // Check cache first
+  if (userNamesCache.value[username]) {
+    return userNamesCache.value[username]
+  }
+  
+  try {
+    const token = localStorage.getItem('token')
+    const res = await fetch(`${apiUrl}/admin/users`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (res.ok) {
+      const users = await res.json()
+      const user = users.find(u => u.username === username)
+      if (user?.name) {
+        userNamesCache.value[username] = user.name
+        return user.name
+      }
+    }
+  } catch (error) {
+    console.log(`No se pudo obtener el nombre real para ${username}`)
+  }
+  
+  // Fallback: mapeo manual para usuarios conocidos
+  const knownUsers = {
+    'yisus': 'Yisus',
+    'admin': 'Administrador', 
+    'marketing': 'Marketing',
+    'support': 'Soporte',
+  }
+  
+  const displayName = knownUsers[username] || username
+  userNamesCache.value[username] = displayName
+  return displayName
+}
+
 // Sheet & Modal state
 const selected = ref(null)
 const sheetOpen = ref(false)
@@ -42,16 +85,24 @@ const currentPage = ref(1)
 const itemsPerPage = 20
 
 // Computed
+const customsWithRealNames = computed(() => {
+  return customs.value.map(c => ({
+    ...c,
+    displayCreatedBy: userNamesCache.value[c.createdByUsername] || c.createdByUsername || '—',
+    displayCompletedBy: userNamesCache.value[c.completedByUsername] || c.completedByUsername || '—'
+  }))
+})
+
 const filteredCustoms = computed(() => {
-  let result = [...customs.value]
+  let result = [...customsWithRealNames.value]
 
   // Search
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(c =>
       c.model?.name?.toLowerCase().includes(q) ||
-      c.createdByUsername?.toLowerCase().includes(q) ||
-      c.completedByUsername?.toLowerCase().includes(q) ||
+      c.displayCreatedBy?.toLowerCase().includes(q) ||
+      c.displayCompletedBy?.toLowerCase().includes(q) ||
       c.id.toString().includes(q)
     )
   }
@@ -96,6 +147,22 @@ const stats = computed(() => ({
   readyForUpload: customs.value.filter(c => c.status === 'READY_FOR_UPLOAD').length,
   completed: completed.value.length,
 }))
+
+// Watch customs to load user names
+watch(customs, async (newCustoms) => {
+  const usernames = new Set()
+  newCustoms.forEach(c => {
+    if (c.createdByUsername) usernames.add(c.createdByUsername)
+    if (c.completedByUsername) usernames.add(c.completedByUsername)
+  })
+  
+  // Load all unique usernames
+  for (const username of usernames) {
+    if (!userNamesCache.value[username]) {
+      await fetchUserRealName(username)
+    }
+  }
+}, { immediate: true })
 
 // Methods
 function openSheet(custom) {
@@ -165,6 +232,7 @@ onMounted(load)
         <Tooltip>
           <TooltipTrigger as-child>
             <Button 
+              data-tour="customs-create"
               size="sm" 
               @click="openCreateModal" 
               :disabled="!isOnShift"
@@ -184,7 +252,7 @@ onMounted(load)
     <!-- Stats Cards -->
     <div class="grid grid-cols-4 gap-3">
       <!-- Total -->
-      <div class="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2">
+      <div data-tour="customs-filters" class="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <div class="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/10">
@@ -398,12 +466,12 @@ onMounted(load)
 
             <!-- Reportó -->
             <TableCell class="py-3">
-              <span class="text-xs text-muted-foreground">{{ c.createdByUsername || '—' }}</span>
+              <span class="text-xs text-muted-foreground">{{ c.displayCreatedBy }}</span>
             </TableCell>
 
             <!-- Envió -->
             <TableCell class="py-3">
-              <span class="text-xs text-muted-foreground">{{ c.completedByUsername || '—' }}</span>
+              <span class="text-xs text-muted-foreground">{{ c.displayCompletedBy }}</span>
             </TableCell>
 
             <!-- Fecha -->

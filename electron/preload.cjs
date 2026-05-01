@@ -35,6 +35,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on('updater:status', (_e, data) => cb(data))
       return () => ipcRenderer.removeAllListeners('updater:status')
     },
+    onProgress: (cb) => {
+      ipcRenderer.on('updater:progress', (_e, data) => cb(data))
+      return () => ipcRenderer.removeAllListeners('updater:progress')
+    },
     installNow: () => ipcRenderer.send('updater:install-now'),
+    checkNow: () => ipcRenderer.send('updater:check-now'),
   },
 })

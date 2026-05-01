@@ -20,7 +20,12 @@ try {
 // ─── Auto Updater ─────────────────────────────────────────────────────────────
 autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = true
-autoUpdater.logger = require('electron').app ? null : null // Use our own logging below
+autoUpdater.allowPrerelease = false
+autoUpdater.allowDowngrade = false
+autoUpdater.logger = require('electron').app ? null : null
+
+// Check for updates every 30 minutes
+const UPDATE_CHECK_INTERVAL = 30 * 60 * 1000
 
 autoUpdater.on('checking-for-update', () => {
   console.log('[AutoUpdater] Checking for update...')
@@ -28,7 +33,11 @@ autoUpdater.on('checking-for-update', () => {
 
 autoUpdater.on('update-available', (info) => {
   console.log('[AutoUpdater] Update available:', info.version)
-  mainWindow?.webContents.send('updater:status', { type: 'available', info })
+  mainWindow?.webContents.send('updater:status', { 
+    type: 'available', 
+    info,
+    message: `Nueva versión ${info.version} disponible. Descargando...`
+  })
 })
 
 autoUpdater.on('update-not-available', (info) => {
@@ -36,31 +45,61 @@ autoUpdater.on('update-not-available', (info) => {
 })
 
 autoUpdater.on('download-progress', (progress) => {
-  console.log(`[AutoUpdater] Download: ${Math.round(progress.percent)}%`)
+  const percent = Math.round(progress.percent)
+  console.log(`[AutoUpdater] Download: ${percent}%`)
+  mainWindow?.webContents.send('updater:progress', { percent })
 })
 
 autoUpdater.on('update-downloaded', (info) => {
   console.log('[AutoUpdater] Update downloaded:', info.version)
-  mainWindow?.webContents.send('updater:status', { type: 'ready', info })
+  mainWindow?.webContents.send('updater:status', { 
+    type: 'ready', 
+    info,
+    message: `Versión ${info.version} lista. Se instalará al cerrar la app.`
+  })
+  
+  // Auto-install after 5 seconds if no user interaction
+  setTimeout(() => {
+    if (!app.isQuitting) {
+      console.log('[AutoUpdater] Auto-installing update...')
+      autoUpdater.quitAndInstall()
+    }
+  }, 5000)
 })
 
 autoUpdater.on('error', (err) => {
   console.error('[AutoUpdater] Error:', err?.message || err)
   console.error('[AutoUpdater] Stack:', err?.stack)
+  mainWindow?.webContents.send('updater:status', { 
+    type: 'error', 
+    message: 'Error al buscar actualizaciones'
+  })
 })
 
 // El renderer puede pedirle al main que instale y reinicie
 ipcMain.on('updater:install-now', () => {
+  console.log('[AutoUpdater] Manual install requested')
   autoUpdater.quitAndInstall()
 })
 
-// Verificar actualizaciones periódicamente (cada 30 minutos)
-setInterval(() => {
+ipcMain.on('updater:check-now', () => {
+  console.log('[AutoUpdater] Manual check requested')
   if (!isDev) {
-    console.log('[AutoUpdater] Periodic check triggered')
-    autoUpdater.checkForUpdates().catch(e => console.error('[AutoUpdater] Periodic check error:', e?.message))
+    autoUpdater.checkForUpdates().catch(e => 
+      console.error('[AutoUpdater] Manual check error:', e?.message)
+    )
   }
-}, 30 * 60 * 1000)
+})
+
+// Verificar actualizaciones periódicamente
+setInterval(() => {
+  if (!isDev && !app.isQuitting) {
+    console.log('[AutoUpdater] Periodic check triggered')
+    autoUpdater.checkForUpdates().catch(e => 
+      console.error('[AutoUpdater] Periodic check error:', e?.message)
+    )
+  }
+}, UPDATE_CHECK_INTERVAL)
 
 let mainWindow = null
 let tray = null

@@ -55,6 +55,7 @@ interface LastReport {
   spenders: Spender[]
   createdAt: string
   fromUser: string
+  fromUserName: string
 }
 
 const props = defineProps<{
@@ -64,6 +65,67 @@ const props = defineProps<{
 
 const modelReports = defineModel<Record<number, ModelReport>>('modelReports', { default: {} })
 const lastReports = ref<Record<number, LastReport>>({})
+const userNamesCache = ref<Record<string, string>>({})
+
+// Computed para calcular el layout de grid óptimo para los tabs
+const tabsGridLayout = computed(() => {
+  const count = props.assignedModels.length
+  if (count <= 4) {
+    return {
+      gridTemplateColumns: `repeat(${count}, 1fr)`,
+      gridTemplateRows: '1fr'
+    }
+  } else if (count <= 6) {
+    return {
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gridTemplateRows: 'repeat(2, 1fr)'
+    }
+  } else if (count <= 8) {
+    return {
+      gridTemplateColumns: 'repeat(4, 1fr)',
+      gridTemplateRows: 'repeat(2, 1fr)'
+    }
+  } else {
+    // Para más de 8, usar 5 columnas
+    return {
+      gridTemplateColumns: 'repeat(5, 1fr)',
+      gridTemplateRows: 'auto'
+    }
+  }
+})
+
+// Función para obtener el nombre real de un usuario por username
+async function fetchUserRealName(username: string): Promise<string> {
+  if (!username) return username
+  
+  // Si ya está en cache, devolverlo
+  if (userNamesCache.value[username]) {
+    return userNamesCache.value[username]
+  }
+  
+  try {
+    // Intentar obtener el nombre real desde la API
+    const res = await api.get(`/admin/users/by-username/${username}`)
+    if (res.data?.name) {
+      userNamesCache.value[username] = res.data.name
+      return res.data.name
+    }
+  } catch (error) {
+    console.log(`No se pudo obtener el nombre real para ${username}`)
+  }
+  
+  // Fallback: mapeo manual para usuarios conocidos
+  const knownUsers: Record<string, string> = {
+    'yisus': 'Yisus',
+    'admin': 'Administrador', 
+    'marketing': 'Marketing',
+    'support': 'Soporte',
+  }
+  
+  const displayName = knownUsers[username] || username
+  userNamesCache.value[username] = displayName
+  return displayName
+}
 const contentInputs = ref<Record<number, string>>({})
 const contentSuggestions = ref<string[]>([])
 const spenderSuggestions = ref<Array<{ name: string; username: string }>>([])
@@ -190,7 +252,10 @@ function removeContentItem(modelId: number, item: string) {
 }
 
 function addSpender(modelId: number) {
-  getReport(modelId).spenders.push({ name: '', username: '', amount: '' })
+  const report = getReport(modelId)
+  if (report.spenders.length < 3) {
+    report.spenders.push({ name: '', username: '', amount: '' })
+  }
 }
 
 function removeSpender(modelId: number, idx: number) {
@@ -252,18 +317,34 @@ watch(
       const ids = models.map(m => m.id).join(',')
       const res = await api.get(`/admin/models/handoff?modelIds=${ids}`)
       if (res.data) {
-        Object.entries(res.data).forEach(([modelId, entries]: [string, any[]]) => {
-          if (entries?.length) {
-            const latest = entries[0]
-            lastReports.value[Number(modelId)] = {
-              message: latest.message || '',
-              soldContent: latest.soldContentJson ? JSON.parse(latest.soldContentJson) : [],
-              spenders: latest.spendersJson ? JSON.parse(latest.spendersJson) : [],
-              createdAt: latest.timestamp,
-              fromUser: latest.authorName || latest.fromUser || '',
+        // Procesar los datos y obtener nombres reales de usuarios
+        const processedData = await Promise.all(
+          Object.entries(res.data).map(async ([modelId, entries]: [string, any[]]) => {
+            if (entries?.length) {
+              const latest = entries[0]
+              const username = latest.authorName || latest.fromUser || ''
+              const displayName = await fetchUserRealName(username)
+              
+              return [modelId, {
+                message: latest.message || '',
+                soldContent: latest.soldContentJson ? JSON.parse(latest.soldContentJson) : [],
+                spenders: latest.spendersJson ? JSON.parse(latest.spendersJson) : [],
+                createdAt: latest.timestamp,
+                fromUser: username,
+                fromUserName: displayName,
+              }]
             }
+            return [modelId, null]
+          })
+        )
+        
+        // Asignar los datos procesados
+        processedData.forEach(([modelId, data]) => {
+          if (data) {
+            lastReports.value[Number(modelId)] = data
           }
         })
+        
         buildSuggestions()
       }
     } catch (err) {
@@ -278,7 +359,7 @@ watch(
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
     <!-- ───────────────────────────── LEFT: Historial ───────────────────────────── -->
-    <div class="rounded-2xl border border-border bg-card p-6 flex flex-col gap-4 max-h-[600px]">
+    <div data-tour="history" class="rounded-2xl border border-border bg-card p-6 flex flex-col gap-4 h-[490px] overflow-hidden">
       <!-- Header -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -307,23 +388,22 @@ watch(
       </div>
 
       <!-- Content -->
-      <div
-        class="flex-1 -mx-2 px-2 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
+      <div class="flex-1 -mx-2 px-2">
         <Tabs v-if="assignedModels.length" :default-value="String(assignedModels[0]?.id)" class="w-full">
-          <TabsList class="mb-4 h-auto w-full flex-wrap justify-start gap-1 p-1 bg-muted/50">
+          <TabsList class="mb-4 h-auto w-full grid gap-1 p-1 bg-muted/50" :style="tabsGridLayout">
             <TabsTrigger v-for="model in assignedModels" :key="model.id" :value="String(model.id)"
-              class="text-xs px-3 h-7 flex-auto min-w-[70px]">
+              class="text-xs px-3 h-7 w-full">
               {{ model.name }}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent v-for="model in assignedModels" :key="model.id" :value="String(model.id)" class="mt-0">
-            <div v-if="lastReports[model.id]" class="space-y-3">
+            <div v-if="lastReports[model.id]" class="space-y-3 max-h-[280px] overflow-y-auto pr-2 custom-scroll">
               <!-- Meta info -->
               <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
                 <div class="flex items-center gap-2">
                   <User class="size-3.5 text-amber-600 dark:text-amber-400" />
-                  <span class="text-xs font-semibold text-amber-900 dark:text-amber-100">{{ lastReports[model.id].fromUser }}</span>
+                  <span class="text-xs font-semibold text-amber-900 dark:text-amber-100">{{ lastReports[model.id].fromUserName || lastReports[model.id].fromUser }}</span>
                 </div>
                 <div class="flex items-center gap-1.5 text-[10px] text-amber-700 dark:text-amber-300">
                   <Clock class="size-3" />
@@ -363,7 +443,7 @@ watch(
                   <span class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Spenders principales</span>
                 </div>
                 <div class="space-y-2">
-                  <div v-for="(sp, i) in lastReports[model.id].spenders" :key="i"
+                  <div v-for="(sp, i) in lastReports[model.id].spenders.slice(0, 3)" :key="i"
                     class="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30">
                     <div class="flex flex-col gap-0.5">
                       <span class="text-xs font-semibold text-foreground">{{ sp.name || sp.username }}</span>
@@ -372,6 +452,9 @@ watch(
                     <span v-if="sp.amount" class="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                       ${{ sp.amount }}
                     </span>
+                  </div>
+                  <div v-if="lastReports[model.id].spenders.length > 3" class="text-center py-1">
+                    <span class="text-[10px] text-muted-foreground">+{{ lastReports[model.id].spenders.length - 3 }} más</span>
                   </div>
                 </div>
               </div>
@@ -393,7 +476,7 @@ watch(
     </div>
 
     <!-- ───────────────────────────── RIGHT: Asignación ───────────────────────────── -->
-    <div class="rounded-2xl border border-border bg-card p-6 flex flex-col gap-4 max-h-[600px]">
+    <div data-tour="current-assignment" class="rounded-2xl border border-border bg-card p-6 flex flex-col gap-4 h-[490px] overflow-hidden">
       <!-- Header -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -422,17 +505,16 @@ watch(
       </div>
 
       <!-- Content -->
-      <div
-        class="flex-1 -mx-2 px-2 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
+      <div class="flex-1 -mx-2 px-2">
         <Tabs v-if="assignedModels.length" :default-value="String(assignedModels[0]?.id)" class="w-full">
-          <TabsList class="mb-4 h-auto w-full flex-wrap justify-start gap-1 p-1 bg-muted/50">
+          <TabsList class="mb-4 h-auto w-full grid gap-1 p-1 bg-muted/50" :style="tabsGridLayout">
             <TabsTrigger v-for="model in assignedModels" :key="model.id" :value="String(model.id)"
-              class="text-xs px-3 h-7 flex-auto min-w-[70px]">
+              class="text-xs px-3 h-7 w-full">
               {{ model.name }}
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent v-for="model in assignedModels" :key="model.id" :value="String(model.id)" class="space-y-4 mt-0">
+          <TabsContent v-for="model in assignedModels" :key="model.id" :value="String(model.id)" class="space-y-4 mt-0 max-h-[280px] overflow-y-auto pr-2 custom-scroll">
             <!-- Observaciones -->
             <div class="space-y-1.5">
               <label class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -499,7 +581,8 @@ watch(
                   <Star class="size-3 fill-amber-400 text-amber-400" /> Spenders principales
                 </label>
                 <Button variant="ghost" size="sm"
-                  class="h-6 px-2 text-xs text-muted-foreground hover:text-foreground gap-1" :disabled="!isWorking"
+                  class="h-6 px-2 text-xs text-muted-foreground hover:text-foreground gap-1" 
+                  :disabled="!isWorking || getReport(model.id).spenders.length >= 3"
                   @click="addSpender(model.id)">
                   <Plus class="size-3" /> Añadir
                 </Button>
@@ -582,3 +665,33 @@ watch(
 
   </div>
 </template>
+
+<style scoped>
+.custom-scroll {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.2) transparent;
+}
+
+.custom-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.2);
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.4);
+}
+
+.custom-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+</style>
