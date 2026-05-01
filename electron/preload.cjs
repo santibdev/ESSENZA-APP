@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     syncTime:  (data)   => ipcRenderer.send('shift:sync-time', data),
   },
   sendNotification: (payload) => ipcRenderer.send('notification:send', payload),
+  
+  // ─── Cache management ────────────────────────────────────────────────────
+  clearCache: () => ipcRenderer.send('clear-cache'),
 
   // ─── Auto Updater ────────────────────────────────────────────────────────
   updater: {

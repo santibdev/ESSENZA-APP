@@ -1,8 +1,21 @@
 const { app, BrowserWindow, ipcMain, desktopCapturer, powerMonitor, Tray, Menu, nativeImage } = require('electron')
 const path = require('path')
+const fs = require('fs')
 const { autoUpdater } = require('electron-updater')
 
 const isDev = process.env.NODE_ENV === 'development'
+
+// Load optimization config
+let optimizationConfig = { isLowRAM: false, optimizations: {} }
+try {
+  const configPath = path.join(__dirname, 'optimization-config.json')
+  if (fs.existsSync(configPath)) {
+    optimizationConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+    console.log(`[Optimization] Loaded config: ${optimizationConfig.totalRAM}GB RAM, Low RAM: ${optimizationConfig.isLowRAM}`)
+  }
+} catch (e) {
+  console.log('[Optimization] Using default config')
+}
 
 // ─── Auto Updater ─────────────────────────────────────────────────────────────
 autoUpdater.autoDownload = true
@@ -143,6 +156,24 @@ function createTray() {
 app.setName('Essenza Models')
 
 function createWindow() {
+  const webPreferences = {
+    backgroundThrottling: false,
+    preload: path.join(__dirname, 'preload.cjs'),
+    contextIsolation: true,
+    nodeIntegration: false,
+    webSecurity: !isDev,
+    enableRemoteModule: false,
+    sandbox: false,
+    experimentalFeatures: false,
+  }
+
+  // Apply low-RAM optimizations if needed
+  if (optimizationConfig.isLowRAM) {
+    console.log('[Optimization] Applying low-RAM window settings')
+    webPreferences.disableHardwareAcceleration = true
+    webPreferences.enableWebSQL = false
+  }
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -151,15 +182,22 @@ function createWindow() {
     frame: false,
     backgroundColor: '#08080f',
     icon: getAssetPath('essenza.ico'),
-    webPreferences: {
-      backgroundThrottling: false,
-      preload: path.join(__dirname, 'preload.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      webSecurity: !isDev,
-    },
+    webPreferences,
     show: false,
   })
+
+  // Memory management for low-RAM systems
+  if (optimizationConfig.isLowRAM && process.platform === 'win32') {
+    console.log('[Optimization] Setting memory limits for Windows')
+    app.commandLine.appendSwitch('--max-old-space-size', '512')
+    app.commandLine.appendSwitch('--max-semi-space-size', '64')
+    app.commandLine.appendSwitch('--memory-pressure-off')
+    
+    // Reduce GPU memory usage
+    app.commandLine.appendSwitch('--disable-gpu-memory-buffer-video-frames')
+    app.commandLine.appendSwitch('--disable-software-rasterizer')
+    app.commandLine.appendSwitch('--disable-gpu-sandbox')
+  }
 
   mainWindow.once('ready-to-show', () => mainWindow.show())
 
@@ -193,6 +231,25 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 }
+
+// ─── IPC: Cache management ──────────────────────────────────────────────────
+ipcMain.on('clear-cache', async () => {
+  try {
+    if (mainWindow) {
+      const session = mainWindow.webContents.session
+      
+      // Clear all cache, cookies, and storage
+      await session.clearCache()
+      await session.clearStorageData({
+        storages: ['cookies', 'filesystem', 'indexdb', 'localstorage', 'shadercache', 'websql', 'serviceworkers', 'cachestorage']
+      })
+      
+      console.log('[Cache] Cleared all cache and storage')
+    }
+  } catch (err) {
+    console.error('[Cache] Error clearing cache:', err)
+  }
+})
 
 // ─── IPC: Window controls ────────────────────────────────────────────────────
 ipcMain.on('window:minimize', () => mainWindow?.minimize())
@@ -354,8 +411,47 @@ ipcMain.handle('get-active-window', async () => {
 
 // ─── App lifecycle ───────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  // Memory optimizations for low-RAM systems
+  if (optimizationConfig.isLowRAM) {
+    app.commandLine.appendSwitch('--disable-background-timer-throttling')
+    app.commandLine.appendSwitch('--disable-renderer-backgrounding')
+    app.commandLine.appendSwitch('--disable-backgrounding-occluded-windows')
+    app.commandLine.appendSwitch('--disable-dev-shm-usage')
+    app.commandLine.appendSwitch('--no-sandbox')
+  }
+  
   createWindow()
   createTray()
+
+  // Periodic memory cleanup (every 5 minutes for low-RAM, 10 minutes for normal)
+  const cleanupInterval = optimizationConfig.isLowRAM ? 3 * 60 * 1000 : 10 * 60 * 1000
+  setInterval(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // Force garbage collection
+      mainWindow.webContents.executeJavaScript(`
+        if (window.gc) {
+          window.gc();
+        }
+        // Clear old fetch cache
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            names.forEach(name => {
+              if (name.includes('fetch') || name.includes('api')) {
+                caches.delete(name);
+              }
+            });
+          });
+        }
+        // Clear old console logs in low-RAM mode
+        ${optimizationConfig.isLowRAM ? 'console.clear();' : ''}
+      `).catch(() => {})
+      
+      if (optimizationConfig.isLowRAM) {
+        // More aggressive cleanup for low-RAM systems
+        mainWindow.webContents.session.clearCache().catch(() => {})
+      }
+    }
+  }, cleanupInterval)
 
   // Buscar actualizaciones 5 segundos después de que la app cargue
   // (solo en producción, no en dev)

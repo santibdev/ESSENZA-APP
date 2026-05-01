@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { clearApiCache } from '../api.js'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -125,6 +126,23 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     error.value = null
     localStorage.removeItem('user')
+    
+    // Clear all localStorage and sessionStorage
+    localStorage.clear()
+    sessionStorage.clear()
+    
+    // Clear API cache
+    clearApiCache()
+    
+    // Clear Electron cache if available
+    if (window.electronAPI?.clearCache) {
+      window.electronAPI.clearCache()
+    }
+    
+    // Force reload to clear all Vue state and HTTP cache
+    setTimeout(() => {
+      window.location.reload()
+    }, 100)
   }
 
   function clearError() {

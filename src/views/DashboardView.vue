@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, defineAsyncComponent } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
 import { useRouter } from 'vue-router'
@@ -16,25 +16,25 @@ import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { AlertTriangle, Plus, X, Play, Zap } from 'lucide-vue-next'
-import ShiftModelReport from '@/components/dashboard/ShiftModelReport.vue'
 
-// Modular Components
-import DashboardSidebar from '@/components/dashboard/DashboardSidebar.vue'
-import Topbar from '@/components/dashboard/Topbar.vue'
-import TrackerCard from '@/components/dashboard/TrackerCard.vue'
-import StatsCards from '@/components/dashboard/StatsCards.vue'
-import NotesCard from '@/components/dashboard/NotesCard.vue'
-import AnnouncementsBanner from '@/components/dashboard/AnnouncementsBanner.vue'
-import ModelHandoffCard from '@/components/dashboard/ModelHandoffCard.vue'
-import MarketingPanel from '@/components/dashboard/MarketingPanel.vue'
-import CreativityWall from '@/components/dashboard/CreativityWall.vue'
-import LeadsKanban from '@/components/dashboard/LeadsKanban.vue'
-import UserShiftHistory from '@/components/dashboard/UserShiftHistory.vue'
-import ModelReportsSection from '@/components/dashboard/ModelReportsSection.vue'
-import ModelKnowledgeBase from '@/components/dashboard/ModelKnowledgeBase.vue'
-import CustomsList from '@/components/customs/CustomsList.vue'
-import CreateCustomModal from '@/components/customs/CreateCustomModal.vue'
-import ContentManagerKanban from '@/components/customs/ContentManagerKanban.vue'
+// Modular Components - Lazy loaded for better performance
+const DashboardSidebar = defineAsyncComponent(() => import('@/components/dashboard/DashboardSidebar.vue'))
+const Topbar = defineAsyncComponent(() => import('@/components/dashboard/Topbar.vue'))
+const TrackerCard = defineAsyncComponent(() => import('@/components/dashboard/TrackerCard.vue'))
+const StatsCards = defineAsyncComponent(() => import('@/components/dashboard/StatsCards.vue'))
+const NotesCard = defineAsyncComponent(() => import('@/components/dashboard/NotesCard.vue'))
+const AnnouncementsBanner = defineAsyncComponent(() => import('@/components/dashboard/AnnouncementsBanner.vue'))
+const ModelHandoffCard = defineAsyncComponent(() => import('@/components/dashboard/ModelHandoffCard.vue'))
+const MarketingPanel = defineAsyncComponent(() => import('@/components/dashboard/MarketingPanel.vue'))
+const CreativityWall = defineAsyncComponent(() => import('@/components/dashboard/CreativityWall.vue'))
+const LeadsKanban = defineAsyncComponent(() => import('@/components/dashboard/LeadsKanban.vue'))
+const UserShiftHistory = defineAsyncComponent(() => import('@/components/dashboard/UserShiftHistory.vue'))
+const ModelReportsSection = defineAsyncComponent(() => import('@/components/dashboard/ModelReportsSection.vue'))
+const ModelKnowledgeBase = defineAsyncComponent(() => import('@/components/dashboard/ModelKnowledgeBase.vue'))
+const CustomsList = defineAsyncComponent(() => import('@/components/customs/CustomsList.vue'))
+const CreateCustomModal = defineAsyncComponent(() => import('@/components/customs/CreateCustomModal.vue'))
+const ContentManagerKanban = defineAsyncComponent(() => import('@/components/customs/ContentManagerKanban.vue'))
+const ShiftModelReport = defineAsyncComponent(() => import('@/components/dashboard/ShiftModelReport.vue'))
 import { useCustomsNotifications } from '@/lib/useCustomsNotifications'
 
 // Types
