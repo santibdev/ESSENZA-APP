@@ -51,10 +51,26 @@ const CATS = { REELS: 'Reels', OUTREACH: 'Outreach', CHAT: 'Chat', TRENDS: 'Tend
 const STATUS_LABELS = { PENDING: 'Pendiente', APPROVED: 'Aprobada', IMPLEMENTED: 'Implementada' }
 
 const CAT_STYLES: Record<string, { note: string; badge: string; text: string }> = {
-  REELS: { note: '#e6f1fb', badge: 'bg-[#e6f1fb] text-[#0c447c]', text: 'text-[#0c447c]' },
-  OUTREACH: { note: '#eaf3de', badge: 'bg-[#eaf3de] text-[#27500a]', text: 'text-[#27500a]' },
-  CHAT: { note: '#faeeda', badge: 'bg-[#faeeda] text-[#633806]', text: 'text-[#633806]' },
-  TRENDS: { note: '#fbeaf0', badge: 'bg-[#fbeaf0] text-[#72243e]', text: 'text-[#72243e]' },
+  REELS: { 
+    note: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200/50 dark:border-blue-800/50', 
+    badge: 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300', 
+    text: 'text-blue-900 dark:text-blue-100' 
+  },
+  OUTREACH: { 
+    note: 'bg-green-50 dark:bg-green-950/30 border-green-200/50 dark:border-green-800/50', 
+    badge: 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300', 
+    text: 'text-green-900 dark:text-green-100' 
+  },
+  CHAT: { 
+    note: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200/50 dark:border-amber-800/50', 
+    badge: 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300', 
+    text: 'text-amber-900 dark:text-amber-100' 
+  },
+  TRENDS: { 
+    note: 'bg-pink-50 dark:bg-pink-950/30 border-pink-200/50 dark:border-pink-800/50', 
+    badge: 'bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300', 
+    text: 'text-pink-900 dark:text-pink-100' 
+  },
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -251,11 +267,12 @@ onMounted(fetchIdeas)
     </div>
 
     <!-- Board -->
-    <div ref="boardRef" class="relative w-full rounded-2xl overflow-hidden border border-border/50"
-      style="min-height: 580px; background: #f8f8f6;">
+    <div ref="boardRef" class="relative w-full rounded-2xl overflow-hidden border border-border/50 bg-muted/30 dark:bg-zinc-900/50"
+      style="min-height: 580px;">
       <!-- Grid dots -->
-      <div class="absolute inset-0 pointer-events-none"
-        style="background-image: radial-gradient(circle, #c8c8c0 1px, transparent 1px); background-size: 28px 28px; opacity: 0.4;" />
+      <div class="absolute inset-0 pointer-events-none opacity-20 dark:opacity-10"
+        style="background-image: radial-gradient(circle, currentColor 1px, transparent 1px); background-size: 28px 28px;" 
+        :class="'text-muted-foreground'" />
 
       <!-- Empty state -->
       <div v-if="!loading && visible.length === 0"
@@ -273,60 +290,59 @@ onMounted(fetchIdeas)
 
       <!-- Notes -->
       <div v-for="idea in visible" :key="idea.id"
-        class="absolute w-[215px] rounded-xl p-4 cursor-grab border select-none group transition-shadow hover:shadow-lg"
+        class="absolute w-[215px] rounded-xl p-4 cursor-grab select-none group transition-shadow hover:shadow-lg"
+        :class="CAT_STYLES[idea.cat].note"
         :style="{
           left: idea.x + 'px',
           top: idea.y + 'px',
-          background: CAT_STYLES[idea.cat].note,
           zIndex: idea.z,
           transform: `rotate(${rotateFor(idea.id)}deg)`,
-          borderColor: 'rgba(0,0,0,0.07)',
         }" @mousedown="(e) => startDrag(e, idea, $event.currentTarget as HTMLElement)">
         <!-- Header -->
         <div class="flex items-start justify-between mb-2">
           <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md"
-            :class="CAT_STYLES[idea.cat].badge" style="background: rgba(255,255,255,0.5)">
+            :class="CAT_STYLES[idea.cat].badge">
             {{ CATS[idea.cat] }}
           </span>
           <button @click.stop="deleteIdea(idea.id)"
-            class="opacity-0 group-hover:opacity-100 transition-opacity text-black/20 hover:text-red-600 bg-transparent border-none cursor-pointer rounded p-0.5 leading-none text-sm">
+            class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-600 bg-transparent border-none cursor-pointer rounded p-0.5 leading-none text-sm">
             <X class="w-3 h-3" />
           </button>
         </div>
 
         <!-- Title -->
-        <p class="text-[12px] font-black leading-tight text-zinc-900 mb-1">{{ idea.title }}</p>
+        <p class="text-[12px] font-black leading-tight mb-1" :class="CAT_STYLES[idea.cat].text">{{ idea.title }}</p>
 
         <!-- Creator -->
-        <p class="text-[10px] text-black/40 font-medium mb-2">
+        <p class="text-[10px] text-muted-foreground font-medium mb-2">
           {{ idea.creator?.name || 'Anónimo' }}
         </p>
 
         <!-- Body -->
-        <p class="text-[11px] text-black/60 leading-relaxed line-clamp-3 mb-3">
+        <p class="text-[11px] text-foreground/60 leading-relaxed line-clamp-3 mb-3">
           {{ idea.content }}
         </p>
 
         <!-- Footer -->
-        <div class="flex items-center gap-1 border-t pt-2" style="border-color: rgba(0,0,0,0.07)">
+        <div class="flex items-center gap-1 border-t border-border/30 pt-2">
           <!-- Like -->
           <button @click.stop="toggleLike(idea)"
             class="flex items-center gap-1 text-[10px] px-1.5 py-1 rounded-md transition-colors cursor-pointer border-none bg-transparent"
-            :class="idea.likedByMe ? 'text-red-600' : 'text-black/40 hover:text-black/70'">
+            :class="idea.likedByMe ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground hover:text-foreground'">
             <Heart class="w-3 h-3" :fill="idea.likedByMe ? 'currentColor' : 'none'" />
             {{ idea.likes }}
           </button>
 
           <!-- Status -->
           <button @click.stop="cycleStatus(idea)"
-            class="flex items-center gap-1 text-[10px] text-black/40 hover:text-black/70 px-1.5 py-1 rounded-md transition-colors cursor-pointer border-none bg-transparent">
+            class="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-1 rounded-md transition-colors cursor-pointer border-none bg-transparent">
             <span class="w-1.5 h-1.5 rounded-full" :class="STATUS_DOT[idea.status]" />
             {{ STATUS_LABELS[idea.status] }}
           </button>
 
           <!-- Detail -->
           <button @click.stop="detailIdea = idea"
-            class="ml-auto flex items-center justify-center text-black/30 hover:text-black/60 transition-colors cursor-pointer border-none bg-transparent p-1 rounded-md">
+            class="ml-auto flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer border-none bg-transparent p-1 rounded-md">
             <Info class="w-3 h-3" />
           </button>
         </div>
@@ -400,7 +416,7 @@ onMounted(fetchIdeas)
         <div class="bg-card rounded-2xl border border-border/50 w-full max-w-md shadow-2xl overflow-hidden"
           style="max-height: 85vh;">
           <!-- Color strip -->
-          <div class="h-1.5 w-full" :style="{ background: CAT_STYLES[detailIdea.cat].note }" />
+          <div class="h-1.5 w-full" :class="CAT_STYLES[detailIdea.cat].note" />
 
           <div class="p-8 overflow-y-auto" style="max-height: calc(85vh - 6px)">
             <!-- Header -->

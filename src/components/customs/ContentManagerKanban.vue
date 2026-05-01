@@ -1,348 +1,290 @@
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted, computed } from 'vue'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Separator } from '@/components/ui/separator'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'vue-sonner'
-import { Video, Image, Mic, RefreshCw, Clock, Send, Upload, CheckCircle2, Link, ZoomIn, X, Copy } from 'lucide-vue-next'
+import {
+  Video, Image, Mic, ArrowRight, RefreshCw, Loader2, Inbox,
+  CheckCircle2, Send, FolderUp, FilePlus2,
+} from 'lucide-vue-next'
 import { customsApi } from '@/lib/customsApi'
+import CustomCard from './CustomCard.vue'
+import CustomDetailModal from './CustomDetailModal.vue'
 
-const customs = ref<any[]>([])
+// State
+const customs = ref([])
 const loading = ref(false)
-
-// Drag & drop
-const draggingId = ref<number | null>(null)
-const dragOverColumn = ref<string | null>(null)
-
-// Move dialog
-const moveDialogOpen = ref(false)
-const pendingMove = ref<{ customId: number; newStatus: string } | null>(null)
+const isDraggingOver = ref(null)
+const showMoveDialog = ref(false)
+const showDetailModal = ref(false)
+const selectedCustom = ref(null)
+const moveCustom = ref(null)
+const moveToStatus = ref('')
 const moveComment = ref('')
 const moveDriveLink = ref('')
-const moveSaving = ref(false)
 
-// Detail dialog
-const detailOpen = ref(false)
-const selectedCustom = ref<any>(null)
-
+// Columns
 const columns = [
-  { id: 'CREATED', label: 'Creados', color: 'text-zinc-600 dark:text-zinc-400', bg: 'bg-zinc-100 dark:bg-zinc-800' },
-  { id: 'SENT', label: 'Enviados', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/20' },
-  { id: 'READY_FOR_UPLOAD', label: 'Listos para subir', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-500/20' },
-  { id: 'COMPLETED', label: 'Completados', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/20' },
+  {
+    id: 'CREATED',
+    title: 'Creados',
+    icon: FilePlus2,
+    accentClass: 'border-t-slate-400 dark:border-t-slate-500',
+    countClass: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+    dropActive: 'border-slate-400/60 bg-slate-50/80 dark:bg-slate-900/40',
+  },
+  {
+    id: 'SENT',
+    title: 'Enviados',
+    icon: Send,
+    accentClass: 'border-t-sky-400 dark:border-t-sky-500',
+    countClass: 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300',
+    dropActive: 'border-sky-400/60 bg-sky-50/80 dark:bg-sky-900/20',
+  },
+  {
+    id: 'READY_FOR_UPLOAD',
+    title: 'Listos para Subir',
+    icon: FolderUp,
+    accentClass: 'border-t-amber-400 dark:border-t-amber-500',
+    countClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+    dropActive: 'border-amber-400/60 bg-amber-50/80 dark:bg-amber-900/20',
+  },
+  {
+    id: 'COMPLETED',
+    title: 'Completados',
+    icon: CheckCircle2,
+    accentClass: 'border-t-emerald-400 dark:border-t-emerald-500',
+    countClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
+    dropActive: 'border-emerald-400/60 bg-emerald-50/80 dark:bg-emerald-900/20',
+  },
 ]
 
-const statusLabel: Record<string, string> = {
-  CREATED: 'Creados', SENT: 'Enviados', READY_FOR_UPLOAD: 'Listos para subir', COMPLETED: 'Completados'
-}
-
-const typeConfig: Record<string, { icon: any; color: string; label: string }> = {
-  VIDEO_CALL: { icon: Video, color: 'text-blue-500', label: 'Videollamada' },
-  IMAGE: { icon: Image, color: 'text-purple-500', label: 'Imágenes/Videos' },
-  AUDIO: { icon: Mic, color: 'text-amber-500', label: 'Audio' },
-}
-
-const priorityDot: Record<string, string> = {
-  LOW: 'bg-zinc-400', NORMAL: 'bg-blue-500', HIGH: 'bg-orange-500', URGENT: 'bg-red-500'
-}
-
-const isReadyForUpload = computed(() => pendingMove.value?.newStatus === 'READY_FOR_UPLOAD')
-const canConfirm = computed(() => moveComment.value.trim() && (!isReadyForUpload.value || moveDriveLink.value.trim()))
-
-const templateParsed = computed(() => {
-  if (!selectedCustom.value?.templateData) return {}
-  try { return JSON.parse(selectedCustom.value.templateData) } catch { return {} }
+// Computed
+const customsByStatus = computed(() => {
+  const g = {}
+  columns.forEach(col => { g[col.id] = customs.value.filter(c => c.status === col.id) })
+  return g
 })
 
-const attachmentsParsed = computed(() => {
-  if (!selectedCustom.value?.attachments) return []
-  try { return JSON.parse(selectedCustom.value.attachments) } catch { return [] }
-})
+const targetColumn = computed(() => columns.find(c => c.id === moveToStatus.value))
 
-function byStatus(status: string) {
-  return customs.value.filter(c => c.status === status)
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-
-async function load() {
+// Helpers
+async function loadCustoms() {
   loading.value = true
-  try { customs.value = await customsApi.list() }
-  catch { } finally { loading.value = false }
-}
-
-// Drag handlers
-function onDragStart(id: number) { draggingId.value = id }
-function onDragOver(e: DragEvent, col: string) { e.preventDefault(); dragOverColumn.value = col }
-function onDragLeave() { dragOverColumn.value = null }
-function onDrop(e: DragEvent, targetStatus: string) {
-  e.preventDefault()
-  dragOverColumn.value = null
-  if (!draggingId.value) return
-  const custom = customs.value.find(c => c.id === draggingId.value)
-  draggingId.value = null
-  if (!custom || custom.status === targetStatus) return
-  pendingMove.value = { customId: custom.id, newStatus: targetStatus }
-  moveComment.value = ''
-  moveDriveLink.value = ''
-  moveDialogOpen.value = true
-}
-
-async function confirmMove() {
-  if (!pendingMove.value || !canConfirm.value) return
-  moveSaving.value = true
   try {
-    await customsApi.updateStatus(pendingMove.value.customId, {
-      status: pendingMove.value.newStatus,
-      comment: moveComment.value,
-      ...(isReadyForUpload.value ? { driveLink: moveDriveLink.value } : {})
-    })
-    toast.success('Estado actualizado')
-    moveDialogOpen.value = false
-    await load()
+    customs.value = (await customsApi.list()) || []
   } catch {
-    toast.error('Error al actualizar')
+    toast.error('Error al cargar customs')
   } finally {
-    moveSaving.value = false
+    loading.value = false
   }
 }
 
-function openDetail(custom: any) {
+function openDetail(custom) {
   selectedCustom.value = custom
-  detailOpen.value = true
+  showDetailModal.value = true
 }
 
-async function copyWhatsApp() {
-  const result = await customsApi.exportAllWhatsApp()
-  await navigator.clipboard.writeText(result.message)
-  toast.success('Resumen copiado')
+function handleDragOver(e, colId) {
+  e.preventDefault()
+  isDraggingOver.value = colId
 }
 
-onMounted(load)
+function handleDragLeave(e) {
+  const related = e.relatedTarget
+  if (!related || !e.currentTarget.contains(related)) {
+    isDraggingOver.value = null
+  }
+}
+
+function handleDrop(e, status) {
+  e.preventDefault()
+  isDraggingOver.value = null
+  const id = parseInt(e.dataTransfer.getData('text/plain'))
+  const custom = customs.value.find(c => c.id === id)
+  if (custom && custom.status !== status) {
+    moveCustom.value = custom
+    moveToStatus.value = status
+    moveComment.value = ''
+    moveDriveLink.value = ''
+    showMoveDialog.value = true
+  }
+}
+
+async function confirmMove() {
+  if (!moveComment.value.trim()) { toast.error('El comentario es obligatorio'); return }
+  if (moveToStatus.value === 'READY_FOR_UPLOAD' && !moveDriveLink.value.trim()) {
+    toast.error('El link de Drive es obligatorio para "Listo para subir"'); return
+  }
+  try {
+    await customsApi.updateStatus(moveCustom.value.id, {
+      status: moveToStatus.value,
+      comment: moveComment.value,
+      driveLink: moveDriveLink.value || undefined,
+    })
+    toast.success('Estado actualizado correctamente')
+    showMoveDialog.value = false
+    loadCustoms()
+  } catch {
+    toast.error('Error al actualizar estado')
+  }
+}
+
+onMounted(loadCustoms)
 </script>
 
 <template>
-  <div class="h-full flex flex-col gap-4 p-4 lg:p-6">
+  <div class="flex flex-col gap-6 p-6 animate-in fade-in slide-in-from-bottom-4 duration-500" data-tour="customs-kanban">
+
     <!-- Header -->
     <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-lg font-black text-zinc-900 dark:text-zinc-100 tracking-tight">Gestión de Customs</h1>
-        <p class="text-xs text-zinc-400 mt-0.5">{{ customs.length }} customs en total · Arrastrá para cambiar estado</p>
+      <div class="space-y-1">
+        <h2 class="text-2xl font-semibold tracking-tight">Gestión de Customs</h2>
+        <p class="text-sm text-muted-foreground">
+          Arrastrá las tarjetas para cambiar su estado, o hacé click para ver los detalles.
+        </p>
       </div>
-      <div class="flex items-center gap-2">
-        <Button variant="outline" size="sm" @click="copyWhatsApp" class="gap-1.5 text-xs">
-          <Copy class="w-3.5 h-3.5" /> WhatsApp
-        </Button>
-        <button @click="load" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-          <RefreshCw class="w-4 h-4 text-zinc-400" :class="{ 'animate-spin': loading }" />
-        </button>
-      </div>
+      <Button variant="outline" size="sm" class="gap-2" :disabled="loading" @click="loadCustoms">
+        <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
+        <RefreshCw v-else class="w-4 h-4" />
+        Actualizar
+      </Button>
     </div>
 
     <!-- Kanban -->
-    <div class="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-3 min-h-0">
-      <div v-for="col in columns" :key="col.id" class="flex flex-col min-h-0"
-        @dragover="onDragOver($event, col.id)"
-        @dragleave="onDragLeave"
-        @drop="onDrop($event, col.id)">
+    <div class="grid grid-cols-1 xl:grid-cols-4 gap-4">
+      <div v-for="(column, colIndex) in columns" :key="column.id"
+        class="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-3 duration-500"
+        :style="{ animationDelay: `${colIndex * 75}ms` }" @drop="handleDrop($event, column.id)"
+        @dragover="handleDragOver($event, column.id)" @dragleave="handleDragLeave($event)">
+        
+        <!-- Column header -->
+        <Card :class="[
+          'border-t-2 transition-all duration-200',
+          column.accentClass,
+          isDraggingOver === column.id ? 'shadow-md ring-1 ring-ring/40' : '',
+        ]">
+          <CardHeader class="py-3 px-4">
+            <CardTitle class="text-sm font-medium flex items-center justify-between">
+              <span class="flex items-center gap-2 text-foreground/80">
+                <component :is="column.icon" class="w-4 h-4" />
+                {{ column.title }}
+              </span>
+              <span :class="['text-xs font-semibold px-2 py-0.5 rounded-full tabular-nums', column.countClass]">
+                {{ customsByStatus[column.id]?.length || 0 }}
+              </span>
+            </CardTitle>
+          </CardHeader>
+        </Card>
 
-        <div class="flex items-center gap-2 mb-2 shrink-0">
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-black" :class="[col.bg, col.color]">
-            {{ col.label }}
-          </span>
-          <span class="text-xs text-zinc-400">{{ byStatus(col.id).length }}</span>
-        </div>
+        <!-- Drop zone -->
+        <div :class="[
+          'flex-1 min-h-[600px] rounded-lg border-2 border-dashed p-2 transition-all duration-200',
+          isDraggingOver === column.id
+            ? ['scale-[1.01]', column.dropActive]
+            : 'border-border/40 bg-muted/10',
+        ]">
+          <ScrollArea class="h-[600px]">
+            <div class="space-y-2 pr-1">
 
-        <ScrollArea class="flex-1">
-          <div class="space-y-2 pr-1 min-h-[60px] rounded-xl transition-all"
-            :class="dragOverColumn === col.id ? 'bg-primary/5 ring-2 ring-primary/20 rounded-xl' : ''">
-            <div v-if="!byStatus(col.id).length && dragOverColumn !== col.id"
-              class="p-3 rounded-xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 text-center text-xs text-zinc-400">
-              Sin customs
-            </div>
-            <div v-for="custom in byStatus(col.id)" :key="custom.id"
-              draggable="true"
-              @dragstart="onDragStart(custom.id)"
-              class="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 cursor-grab active:cursor-grabbing hover:border-primary/40 hover:shadow-sm transition-all group"
-              :class="draggingId === custom.id ? 'opacity-40' : ''"
-              @click="openDetail(custom)">
-
-              <div class="flex items-start justify-between gap-2 mb-2">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
-                    :class="typeConfig[custom.type]?.color.replace('text-', 'bg-').replace('500', '500/10')">
-                    <component :is="typeConfig[custom.type]?.icon" class="w-3 h-3" :class="typeConfig[custom.type]?.color" />
-                  </span>
-                  <p class="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{{ custom.model?.name }}</p>
+              <!-- Skeleton -->
+              <template v-if="loading">
+                <div v-for="i in 3" :key="i" class="animate-pulse">
+                  <Card class="opacity-40">
+                    <CardContent class="p-4 space-y-2">
+                      <div class="h-3 w-2/3 rounded bg-muted" />
+                      <div class="h-3 w-1/2 rounded bg-muted" />
+                      <div class="h-3 w-1/3 rounded bg-muted" />
+                    </CardContent>
+                  </Card>
                 </div>
-                <span class="w-2 h-2 rounded-full shrink-0 mt-1" :class="priorityDot[custom.priority]" />
+              </template>
+
+              <!-- Empty -->
+              <div v-else-if="!customsByStatus[column.id]?.length"
+                class="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground/30">
+                <Inbox class="w-8 h-8" />
+                <p class="text-xs">Sin customs</p>
               </div>
 
-              <p class="text-[10px] text-zinc-400 truncate">{{ typeConfig[custom.type]?.label }}</p>
-              <p class="text-[10px] text-zinc-400 mt-1">{{ formatDate(custom.createdAt) }} · {{ custom.createdByUser?.name }}</p>
+              <!-- Cards -->
+              <template v-else>
+                <div v-for="(custom, ci) in customsByStatus[column.id]" :key="custom.id"
+                  class="animate-in fade-in zoom-in-95 duration-300" :style="{ animationDelay: `${ci * 45}ms` }">
+                  <CustomCard :custom="custom" draggable="true" class="cursor-grab active:cursor-grabbing"
+                    @dragstart="e => e.dataTransfer.setData('text/plain', custom.id.toString())"
+                    @click="openDetail" />
+                </div>
+              </template>
+
             </div>
-          </div>
-        </ScrollArea>
+          </ScrollArea>
+        </div>
       </div>
     </div>
 
+    <!-- Detail modal -->
+    <CustomDetailModal :open="showDetailModal" :custom="selectedCustom" @update:open="showDetailModal = $event"
+      @updated="loadCustoms" />
+
     <!-- Move dialog -->
-    <Dialog v-model:open="moveDialogOpen">
-      <DialogContent class="max-w-md p-0 gap-0 overflow-hidden">
-        <DialogHeader class="px-5 pt-5 pb-4 border-b border-border">
-          <DialogTitle class="text-base font-black tracking-tight">
-            Mover a "{{ pendingMove ? statusLabel[pendingMove.newStatus] : '' }}"
+    <Dialog v-model:open="showMoveDialog">
+      <DialogContent class="max-w-sm">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2 text-base">
+            Cambiar estado
+            <ArrowRight class="w-4 h-4 text-muted-foreground" />
+            <span class="text-primary">{{ targetColumn?.title }}</span>
           </DialogTitle>
         </DialogHeader>
-        <div class="p-5 space-y-4">
-          <div v-if="isReadyForUpload" class="space-y-2">
-            <Label>Link de Drive <span class="text-red-500">*</span></Label>
-            <Input v-model="moveDriveLink" placeholder="https://drive.google.com/..." />
+
+        <div class="space-y-4 py-1">
+          <div v-if="moveCustom" class="flex items-center gap-2.5 rounded-lg border bg-muted/30 px-3 py-2.5">
+            <div class="w-7 h-7 rounded bg-primary/10 flex items-center justify-center shrink-0">
+              <component :is="moveCustom.type === 'VIDEO_CALL' ? Video : moveCustom.type === 'IMAGE' ? Image : Mic"
+                class="w-3.5 h-3.5 text-primary" />
+            </div>
+            <span class="text-sm font-medium flex-1 truncate">{{ moveCustom.modelName || moveCustom.model?.name || 'Sin modelo' }}</span>
+            <Badge variant="outline" class="text-xs shrink-0">{{ moveCustom.priority }}</Badge>
           </div>
-          <div class="space-y-2">
-            <Label>Comentario <span class="text-red-500">*</span></Label>
-            <Textarea v-model="moveComment"
-              :placeholder="isReadyForUpload ? 'Ej: Contenido subido al Drive, listo para enviar...' : 'Ej: Se envió el chat a la modelo...'"
-              :rows="3" />
+
+          <div v-if="moveToStatus === 'READY_FOR_UPLOAD'" class="space-y-1.5">
+            <Label class="text-xs font-medium">
+              Link de Drive <span class="text-destructive">*</span>
+            </Label>
+            <Input v-model="moveDriveLink" placeholder="https://drive.google.com/…" class="text-sm h-9" />
+            <p class="text-[11px] text-muted-foreground">
+              El chatter usará este link para descargar el contenido.
+            </p>
           </div>
-          <p v-if="!canConfirm" class="text-xs text-amber-600 dark:text-amber-400">
-            {{ isReadyForUpload && !moveDriveLink.trim() ? 'El link de Drive es obligatorio.' : 'El comentario es obligatorio.' }}
-          </p>
+
+          <div class="space-y-1.5">
+            <Label class="text-xs font-medium">
+              Comentario <span class="text-destructive">*</span>
+            </Label>
+            <Textarea v-model="moveComment" placeholder="Describí el cambio de estado o agregá observaciones…"
+              class="text-sm resize-none" rows="3" />
+          </div>
         </div>
-        <div class="px-5 pb-5 flex gap-2 justify-end">
-          <Button variant="outline" @click="moveDialogOpen = false">Cancelar</Button>
-          <Button @click="confirmMove" :disabled="!canConfirm || moveSaving">
-            {{ moveSaving ? 'Guardando...' : 'Confirmar' }}
-          </Button>
-        </div>
+
+        <DialogFooter class="gap-2">
+          <Button variant="ghost" size="sm" @click="showMoveDialog = false">Cancelar</Button>
+          <Button size="sm" @click="confirmMove">Confirmar cambio</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
 
-    <!-- Detail dialog (read-only for CM) -->
-    <Dialog v-model:open="detailOpen">
-      <DialogContent class="flex h-[75vh] max-w-5xl flex-col gap-0 overflow-hidden p-0">
-        
-        <!-- Header -->
-        <div v-if="selectedCustom" class="shrink-0 space-y-3 border-b px-6 pb-4 pt-5">
-          <div class="flex items-start gap-4">
-            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-muted">
-              <component :is="typeConfig[selectedCustom.type]?.icon" class="h-5 w-5" :class="typeConfig[selectedCustom.type]?.color" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <h3 class="truncate text-lg font-medium leading-snug">{{ selectedCustom.model?.name }}</h3>
-              <p class="mt-0.5 text-sm text-muted-foreground">{{ typeConfig[selectedCustom.type]?.label }} · #{{ selectedCustom.id }}</p>
-            </div>
-          </div>
-          
-          <div class="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>Creado por {{ selectedCustom.createdByUser?.name }}</span>
-            <span class="opacity-40">·</span>
-            <span>{{ formatDate(selectedCustom.createdAt) }}</span>
-          </div>
-        </div>
-
-        <!-- Body: Grid 50/50 -->
-        <div class="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
-          
-          <!-- LEFT: Details -->
-          <ScrollArea>
-            <div class="space-y-5 px-6 py-5">
-              <!-- Template fields -->
-              <section v-if="Object.keys(templateParsed).length" class="space-y-2.5">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Detalles del custom</p>
-                <div class="overflow-hidden rounded-lg border divide-y divide-border">
-                  <div v-for="(value, key) in templateParsed" :key="key" v-show="value" class="flex items-stretch">
-                    <span class="flex w-36 shrink-0 items-center self-stretch border-r bg-muted/50 px-4 py-3 text-xs font-medium text-muted-foreground">
-                      {{ key }}
-                    </span>
-                    <span class="flex-1 break-words px-4 py-3 text-sm text-foreground whitespace-pre-wrap">
-                      {{ value }}
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Reference images -->
-              <section v-if="attachmentsParsed.length" class="space-y-2.5">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Imágenes de referencia</p>
-                <div class="flex flex-wrap gap-3">
-                  <div v-for="(att, i) in attachmentsParsed" :key="i" class="group relative cursor-pointer">
-                    <img :src="att.url" class="h-24 w-24 rounded-lg border object-cover transition-all group-hover:opacity-70 group-hover:scale-105"
-                      @click="window.open(att.url, '_blank')" />
-                    <div class="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                      <ZoomIn class="h-6 w-6 text-white drop-shadow-lg" />
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <!-- Drive link -->
-              <section v-if="selectedCustom?.driveLink" class="space-y-2.5">
-                <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Contenido final</p>
-                <a :href="selectedCustom.driveLink" target="_blank"
-                  class="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/60">
-                  <Link class="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span class="flex-1 truncate text-sm text-foreground">{{ selectedCustom.driveLink }}</span>
-                </a>
-              </section>
-            </div>
-          </ScrollArea>
-
-          <!-- RIGHT: Activity (read-only for CM) -->
-          <div class="flex flex-col overflow-hidden border-l">
-            <div class="flex shrink-0 items-center justify-between border-b px-4 py-2.5">
-              <p class="text-sm font-medium text-foreground">Actividad</p>
-              <span class="text-xs text-muted-foreground">{{ selectedCustom?.history?.length ?? 0 }}</span>
-            </div>
-
-            <div v-if="!selectedCustom?.history?.length" class="flex flex-1 items-center justify-center">
-              <div class="text-center">
-                <Clock class="mx-auto mb-2 h-8 w-8 text-muted-foreground/30" />
-                <p class="text-sm text-muted-foreground">Sin actividad</p>
-              </div>
-            </div>
-
-            <ScrollArea v-else class="flex-1">
-              <div class="space-y-3 p-4">
-                <div v-for="(entry, idx) in selectedCustom.history" :key="entry.id ?? idx"
-                  class="flex gap-3 rounded-lg p-3 transition-all"
-                  :class="idx === selectedCustom.history.length - 1 ? 'bg-gradient-to-r from-blue-500/10 to-transparent border-l-2 border-blue-500' : 'hover:bg-muted/30'">
-                  
-                  <!-- Avatar -->
-                  <div class="shrink-0">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-full border-2 text-xs font-bold"
-                      :class="idx === selectedCustom.history.length - 1 ? 'bg-blue-500 text-white border-blue-600' : 'bg-muted text-muted-foreground border-border'">
-                      {{ (entry.createdByUser?.name || entry.user?.name || entry.username || 'S').charAt(0).toUpperCase() }}
-                    </div>
-                  </div>
-
-                  <!-- Content -->
-                  <div class="min-w-0 flex-1">
-                    <div class="mb-1 flex items-center gap-2">
-                      <span class="text-sm font-semibold text-foreground">
-                        {{ entry.createdByUser?.name || entry.user?.name || entry.username || 'Sistema' }}
-                      </span>
-                      <span class="text-xs text-muted-foreground">{{ entry.action?.toLowerCase() }}</span>
-                    </div>
-                    <div class="mb-2 text-xs text-muted-foreground">{{ formatDate(entry.timestamp || entry.createdAt) }}</div>
-                    <div v-if="entry.comment" class="mt-2 rounded-lg border px-3 py-2.5 text-sm"
-                      :class="idx === selectedCustom.history.length - 1 ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900' : 'bg-muted/30 border-border'">
-                      {{ entry.comment }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </ScrollArea>
-          </div>
-        </div>
-
-      </DialogContent>
-    </Dialog>
   </div>
 </template>
+
+<style scoped>
+[draggable="true"]:active {
+  opacity: 0.55;
+}
+</style>

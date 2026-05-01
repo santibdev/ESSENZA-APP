@@ -29,12 +29,20 @@ export function useCustoms(modelIds) {
 
   async function load() {
     const ids = typeof modelIds === 'function' ? modelIds() : modelIds?.value ?? modelIds
-    if (!ids?.length) return
     loading.value = true
     try {
-      customs.value = (await customsApi.list({ modelIds: ids })) || []
-    } catch {
-      toast.error('Error al cargar customs')
+      // If no modelIds provided (e.g., Manager role), fetch all customs
+      if (!ids || ids.length === 0) {
+        console.log('[useCustoms] Loading all customs (no model filter)')
+        customs.value = (await customsApi.list()) || []
+      } else {
+        console.log('[useCustoms] Loading customs for models:', ids)
+        customs.value = (await customsApi.list({ modelIds: ids })) || []
+      }
+      console.log('[useCustoms] Loaded customs:', customs.value.length)
+    } catch (error) {
+      console.error('[useCustoms] Error loading customs:', error)
+      toast.error('Error al cargar customs: ' + (error.message || 'Error desconocido'))
     } finally {
       loading.value = false
     }

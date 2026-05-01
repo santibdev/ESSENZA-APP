@@ -61,6 +61,7 @@ interface LastReport {
 const props = defineProps<{
   assignedModels: Model[]
   isWorking: boolean
+  readOnly?: boolean
 }>()
 
 const modelReports = defineModel<Record<number, ModelReport>>('modelReports', { default: {} })
@@ -476,7 +477,8 @@ watch(
     </div>
 
     <!-- ───────────────────────────── RIGHT: Asignación ───────────────────────────── -->
-    <div data-tour="current-assignment" class="rounded-2xl border border-border bg-card p-6 flex flex-col gap-4 h-[490px] overflow-hidden">
+    <!-- Asignación actual (solo para Chatters, no para Marketing) -->
+    <div v-if="!readOnly" data-tour="current-assignment" class="rounded-2xl border border-border bg-card p-6 flex flex-col gap-4 h-[490px] overflow-hidden">
       <!-- Header -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">

@@ -63,7 +63,7 @@ const router = useRouter()
 const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://service-production-1ef2.up.railway.app/api/v1'
 const { startTour, hasCompletedTour, markAsCompleted } = useOnboardingTour((tab) => {
   activeTab.value = tab
-})
+}, auth.user?.role)
 
 function startTourManually() {
   startTour()
@@ -99,6 +99,12 @@ const startEarningsMessages = ref(0)
 const startEarningsTips = ref(0)
 const startEarningsPosts = ref(0)
 const startGrowthPercentage = ref(0)
+
+// Marketing-specific start values
+const startReelsEdited = ref(0)
+const startPostsCreated = ref(0)
+const startIdeasGenerated = ref(0)
+
 const observations = ref('')
 const isForceExit = ref(false)
 const emergencyReason = ref('')
@@ -141,7 +147,7 @@ const userAllSchedules = ref<any[]>([])
 
 // --- Computed ---
 const isMarketing = computed(() => auth.user?.role === 'ROLE_MARKETING')
-const isContentManager = computed(() => auth.user?.role === 'ROLE_CONTENT_MANAGER')
+const isContentManager = computed(() => auth.user?.role === 'ROLE_MANAGER' || auth.user?.role === 'ROLE_CONTENT_MANAGER')
 const SHIFT_TARGET = computed(() => {
   // 1. Prioridad: Lo que diga el turno actual (si ya inició)
   if (shiftTarget.value) return shiftTarget.value
@@ -218,12 +224,13 @@ const isWithinSchedule = computed(() => {
 
 // --- Fetch Templates ---
 async function fetchTemplates() {
-  try {
-    const res = await api.get('/shifts/templates/batch')
-    shiftTemplates.value = res.data || []
-  } catch (e) {
-    console.error('Error fetching templates:', e)
-  }
+  // TODO: Backend endpoint not implemented yet
+  // try {
+  //   const res = await api.get('/shifts/templates/batch')
+  //   shiftTemplates.value = res.data || []
+  // } catch (e) {
+  //   console.error('Error fetching templates:', e)
+  // }
 }
 
 async function fetchUserAllSchedules() {
@@ -309,11 +316,20 @@ async function startShift(isExtra = false) {
 
   try {
     const endpoint = isExtra ? `${apiUrl}/shifts/start-extra` : `${apiUrl}/shifts/start`
-    const body = {
-      initialEarnings: startEarnings.value, initialEarningsMessages: startEarningsMessages.value,
-      initialEarningsTips: startEarningsTips.value, initialEarningsPosts: startEarningsPosts.value,
+    
+    // Different body for Marketing vs Chatter
+    const body = isMarketing.value ? {
+      initialReelsEdited: startReelsEdited.value,
+      initialPostsCreated: startPostsCreated.value,
+      initialIdeasGenerated: startIdeasGenerated.value
+    } : {
+      initialEarnings: startEarnings.value, 
+      initialEarningsMessages: startEarningsMessages.value,
+      initialEarningsTips: startEarningsTips.value, 
+      initialEarningsPosts: startEarningsPosts.value,
       initialGrowthPercentage: startGrowthPercentage.value
     }
+    
     const res = await fetch(endpoint, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
     const data = await res.json()
     currentShiftId.value = data.id
@@ -616,18 +632,18 @@ onMounted(async () => {
       userSchedule.value = await sRes.json()
       const models = userSchedule.value.assignedModels || []
       assignedModels.value = models.sort((a: any, b: any) => a.name.localeCompare(b.name))
-      await loadHandoff()
-      // Start customs notifications polling
-      customsNotifications.start()
+      
+      // Only load handoff for Chatters (they see ModelReportsSection)
+      if (!isContentManager.value && !isMarketing.value) {
+        await loadHandoff()
+      }
+      
+      // Start customs notifications polling (only for Chatters and Managers, not Marketing)
+      if (!isMarketing.value) {
+        customsNotifications.start()
+      }
     }
   } catch { }
-  
-  // Start onboarding tour if first time
-  setTimeout(() => {
-    if (!hasCompletedTour()) {
-      startTour()
-    }
-  }, 1500) // Delay to let the UI render
 })
 
 onUnmounted(() => {
@@ -642,6 +658,7 @@ onUnmounted(() => {
       <!-- Modular Sidebar -->
       <DashboardSidebar v-model:activeTab="activeTab" v-model:open="sidebarOpen" :is-marketing="isMarketing"
         :is-content-manager="isContentManager"
+        :pending-customs-count="customsNotifications.pendingCount.value"
         :off-days="offDaysArray" @logout="auth.logout(); router.push({ name: 'login' })" />
 
       <main class="flex-1 flex flex-col min-w-0 relative overflow-hidden transition-colors duration-300 ">
@@ -700,16 +717,14 @@ onUnmounted(() => {
                 />
               </div>
 
-              <!-- Model Reports Section — not for Content Manager -->
+              <!-- Model Reports Section — only for Chatters (not Marketing, not Content Manager) -->
               <ModelReportsSection 
                 data-tour="models-tabs"
-                v-if="!isContentManager" 
+                v-if="!isContentManager && !isMarketing" 
                 v-model:model-reports="modelReports" 
                 :assigned-models="assignedModels"
-                :is-working="isWorking" 
+                :is-working="isWorking"
               />
-
-              <MarketingPanel v-if="isMarketing" ref="marketingPanelRef" />
             </template>
 
             <template v-else-if="activeTab === 'context'">
@@ -730,7 +745,18 @@ onUnmounted(() => {
 
             <!-- Case: HISTORY -->
             <template v-else-if="activeTab === 'history'">
-              <UserShiftHistory data-tour="history-section" />
+              <!-- Content Manager sees only CREATED customs (pending to process) -->
+              <CustomsList 
+                v-if="isContentManager"
+                data-tour="customs-pending"
+                :model-ids="[]"
+                :models="[]"
+                :is-on-shift="isWorking"
+                :filter-status="'CREATED'"
+                :show-only-pending="true"
+              />
+              <!-- Regular users see shift history -->
+              <UserShiftHistory v-else data-tour="history-section" />
             </template>
 
             <!-- Case: CUSTOMS -->
@@ -767,14 +793,31 @@ onUnmounted(() => {
             </DialogDescription>
           </DialogHeader>
           <div class="space-y-4 py-2">
-            <div v-if="!isContentManager" class="space-y-2">
-              <label class="text-xs font-medium text-muted-foreground">Facturación Inicial ($)</label>
+            <!-- Marketing: Reels, Posts, Ideas (optional, defaults to 0) -->
+            <template v-if="isMarketing">
+              <div class="space-y-2">
+                <label class="text-xs font-medium text-muted-foreground">Reels Editados Iniciales (opcional)</label>
+                <Input type="number" v-model.number="startReelsEdited" placeholder="0" class="h-11 text-base font-bold" />
+              </div>
+              <div class="space-y-2">
+                <label class="text-xs font-medium text-muted-foreground">Posts Creados Iniciales (opcional)</label>
+                <Input type="number" v-model.number="startPostsCreated" placeholder="0" class="h-11 text-base font-bold" />
+              </div>
+              <div class="space-y-2">
+                <label class="text-xs font-medium text-muted-foreground">Ideas Generadas Iniciales (opcional)</label>
+                <Input type="number" v-model.number="startIdeasGenerated" placeholder="0" class="h-11 text-base font-bold" />
+              </div>
+            </template>
+            
+            <!-- Chatter: Facturación (optional, defaults to 0) -->
+            <div v-else-if="!isContentManager" class="space-y-2">
+              <label class="text-xs font-medium text-muted-foreground">Facturación Inicial ($ - opcional)</label>
               <Input type="number" v-model="startEarnings" placeholder="0.00" class="h-11 text-base font-bold" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" @click="showStartModal = false">Cancelar</Button>
-            <Button @click="startShift(isExtraHoursSelection)">Confirmar</Button>
+            <Button @click="startShift(isExtraHoursSelection)">Iniciar Turno</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -19,6 +19,8 @@ const props = defineProps({
   modelIds: { type: Array, default: () => [] },
   models: { type: Array, default: () => [] },
   isOnShift: { type: Boolean, default: false },
+  filterStatus: { type: String, default: null },
+  showOnlyPending: { type: Boolean, default: false },
 })
 
 const { customs, loading, urgent, byModel, completed, load, refreshOne } = useCustoms(
@@ -76,7 +78,7 @@ const createModalOpen = ref(false)
 // Filters
 const searchQuery = ref('')
 const filterModel = ref('all')
-const filterStatus = ref('all')
+const filterStatus = ref(props.filterStatus || 'all')
 const filterPriority = ref('all')
 const filterType = ref('all')
 
@@ -215,6 +217,11 @@ function getStatusBorderClass(status) {
 watch([searchQuery, filterModel, filterStatus, filterPriority, filterType], () => {
   currentPage.value = 1
 })
+
+// Watch modelIds to reload when they change
+watch(() => props.modelIds, () => {
+  load()
+}, { immediate: false })
 
 onMounted(load)
 </script>
@@ -360,12 +367,16 @@ onMounted(load)
             <Filter class="w-3.5 h-3.5 text-violet-500" />
           </div>
           <div>
-            <p class="text-sm font-bold text-foreground leading-none">Filtros</p>
-            <p class="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">Buscar y filtrar customs</p>
+            <p class="text-sm font-bold text-foreground leading-none">
+              {{ showOnlyPending ? 'Customs Pendientes de Procesar' : 'Filtros' }}
+            </p>
+            <p class="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
+              {{ showOnlyPending ? 'Estado: CREADO - Requiere acción' : 'Buscar y filtrar customs' }}
+            </p>
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <Button variant="ghost" size="sm" @click="resetFilters" class="h-8 text-xs">
+          <Button v-if="!showOnlyPending" variant="ghost" size="sm" @click="resetFilters" class="h-8 text-xs">
             Limpiar
           </Button>
           <Button variant="outline" size="sm" @click="load" :disabled="loading" class="h-8">
@@ -374,7 +385,7 @@ onMounted(load)
         </div>
       </div>
 
-      <div class="grid grid-cols-4 gap-3">
+      <div v-if="!showOnlyPending" class="grid grid-cols-4 gap-3">
         <div class="col-span-2">
           <Input
             v-model="searchQuery"
@@ -405,6 +416,16 @@ onMounted(load)
             <SelectItem value="COMPLETED">Completado</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+      
+      <div v-else class="grid grid-cols-2 gap-3">
+        <div>
+          <Input
+            v-model="searchQuery"
+            placeholder="Buscar por modelo, chatter, ID..."
+            class="h-9"
+          />
+        </div>
       </div>
     </div>
 

@@ -15,6 +15,7 @@ const props = defineProps<{
   isContentManager?: boolean
   open?: boolean
   offDays?: string[]
+  pendingCustomsCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -32,16 +33,16 @@ const sections = [
     label: 'Tiempo Real',
     items: [
       { id: 'tracker' as TabType, label: 'Control de Turno', icon: Radio, color: 'text-emerald-500', bg: 'bg-emerald-500/10', show: true },
-      { id: 'history' as TabType, label: 'Mi Rendimiento', icon: History, color: 'text-sky-500', bg: 'bg-sky-500/10', show: !props.isContentManager },
+      { id: 'history' as TabType, label: props.isContentManager ? 'Customs Pendientes' : 'Mi Rendimiento', icon: History, color: 'text-sky-500', bg: 'bg-sky-500/10', show: !props.isContentManager },
     ]
   },
   {
     label: 'Estrategia Agency',
     items: [
-      { id: 'customs' as TabType, label: props.isContentManager ? 'Gestión de Customs' : 'Customs', icon: Package, color: 'text-teal-500', bg: 'bg-teal-500/10', show: true },
+      { id: 'customs' as TabType, label: props.isContentManager ? 'Gestión de Customs' : 'Customs', icon: Package, color: 'text-teal-500', bg: 'bg-teal-500/10', show: !props.isMarketing },
       { id: 'crm' as TabType, label: 'Gestión de Leads', icon: Users, color: 'text-violet-500', bg: 'bg-violet-500/10', show: props.isMarketing },
       { id: 'creative' as TabType, label: 'Muro Creativo', icon: Lightbulb, color: 'text-amber-500', bg: 'bg-amber-500/10', show: props.isMarketing },
-      { id: 'context' as TabType, label: 'Modelos', icon: ClipboardCheck, color: 'text-rose-500', bg: 'bg-rose-500/10', show: !props.isContentManager },
+      { id: 'context' as TabType, label: 'Modelos', icon: ClipboardCheck, color: 'text-rose-500', bg: 'bg-rose-500/10', show: !props.isContentManager && !props.isMarketing },
     ]
   }
 ]
@@ -101,6 +102,7 @@ function selectTab(id: TabType) {
             <ul class="space-y-0.5">
               <li v-for="item in section.items" :key="item.id">
                 <button v-if="item.show !== false" @click="selectTab(item.id)"
+                  :data-tour="item.id === 'history' && isContentManager ? 'sidebar-customs' : undefined"
                   class="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-left transition-all duration-200 group"
                   :class="[
                     activeTab === item.id
@@ -114,6 +116,13 @@ function selectTab(id: TabType) {
                   </span>
 
                   <span class="text-sm font-medium flex-1 leading-none">{{ item.label }}</span>
+                  
+                  <!-- Counter badge for Gestión de Customs -->
+                  <span v-if="item.id === 'customs' && isContentManager && pendingCustomsCount > 0"
+                    class="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-teal-500 text-white tabular-nums">
+                    {{ pendingCustomsCount }}
+                  </span>
+                  
                   <ChevronRight v-if="activeTab === item.id" class="w-3 h-3 text-zinc-300 dark:text-zinc-700" />
                 </button>
               </li>

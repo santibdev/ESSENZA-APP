@@ -1,7 +1,7 @@
 import { driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
 
-export function useOnboardingTour(changeTab) {
+export function useOnboardingTour(changeTab, userRole) {
   
   const chatterSteps = [
     {
@@ -46,10 +46,58 @@ export function useOnboardingTour(changeTab) {
     }
   ]
 
+  const managerSteps = [
+    {
+      popover: {
+        title: 'Bienvenido Manager',
+        description: 'Este recorrido te mostrará cómo gestionar customs y tu turno de trabajo.'
+      }
+    },
+    {
+      element: '[data-tour="shift-status"]',
+      popover: {
+        title: 'Control de turno',
+        description: 'Inicia y finaliza tu turno aquí. El sistema registra tu tiempo activo automáticamente.'
+      }
+    },
+    {
+      element: '[data-tour="logbook"]',
+      popover: {
+        title: 'Bitácora',
+        description: 'Escribe observaciones importantes durante tu turno. Se guardarán en tu reporte final.',
+        onNextClick: () => {
+          // Navigate to customs tab before showing the kanban
+          if (changeTab) changeTab('customs')
+          // Wait a bit for the tab to render
+          setTimeout(() => {
+            driverObj.moveNext()
+          }, 300)
+        }
+      }
+    },
+    {
+      element: '[data-tour="customs-kanban"]',
+      popover: {
+        title: 'Gestión de Customs',
+        description: 'Arrastrá las tarjetas entre columnas para cambiar su estado, o hacé click para ver detalles. Podés cambiar estados, agregar links de Drive y completar customs. El contador en el sidebar muestra cuántos customs están pendientes de procesar.'
+      }
+    },
+    {
+      popover: {
+        title: '¡Listo!',
+        description: 'Ya sabes cómo gestionar customs. Podés volver a ver este recorrido desde el botón de ayuda (?) en la barra superior.'
+      }
+    }
+  ]
+
+  let driverObj = null
+
   function startTour() {
-    const driverObj = driver({
+    const steps = (userRole === 'ROLE_MANAGER' || userRole === 'ROLE_CONTENT_MANAGER') ? managerSteps : chatterSteps
+    
+    driverObj = driver({
       showProgress: true,
-      steps: chatterSteps,
+      steps: steps,
       nextBtnText: 'Siguiente',
       prevBtnText: 'Anterior',
       doneBtnText: 'Finalizar',

@@ -133,20 +133,6 @@ onMounted(() => {
 <template>
   <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
     
-    <!-- RESUMEN DEL TURNO -->
-    <Card class="rounded-[2.5rem] border-none shadow-xl bg-card/60 backdrop-blur-md p-8">
-       <div class="flex items-center gap-4 mb-6">
-          <div class="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-             <ClipboardList class="w-6 h-6" />
-          </div>
-          <div>
-             <h3 class="text-xl font-black uppercase tracking-tight italic">Resumen del Turno</h3>
-             <p class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Anotaciones para el análisis de IA posterior</p>
-          </div>
-       </div>
-       <Textarea v-model="shiftObservations" placeholder="Describí las novedades, ideas propuestas y el estado general de las cuentas..." class="min-h-[120px] rounded-[2rem] bg-background/50 border-border/50 p-6 text-sm font-bold" />
-    </Card>
-
     <Tabs default-value="p3" class="w-full">
        <TabsList class="bg-muted/30 p-1.5 rounded-[1.5rem] w-full justify-start gap-2 h-14 mb-8 border border-border/50 backdrop-blur-sm">
           <TabsTrigger value="p3" class="rounded-xl px-4 flex-1 h-11 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 shadow-sm">Tráfico & Métricas</TabsTrigger>
