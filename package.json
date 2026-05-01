@@ -1,6 +1,6 @@
 {
   "name": "essenzamodels",
-  "version": "1.0.51",
+  "version": "1.0.60",
   "author": "SB TECHNOLOGY",
   "type": "module",
   "description": "Corporate Communication Platform",
@@ -18,7 +18,7 @@
     "deploy:major": "node scripts/deploy.js major"
   },
   "dependencies": {
-    "active-win": "^7.7.2",
+    "active-win": "^8.2.1",
     "driver.js": "^1.4.0",
     "electron-updater": "^6.8.3"
   },
@@ -55,6 +55,7 @@
     "productName": "ESSENZA MODELS",
     "asar": true,
     "compression": "maximum",
+    "npmRebuild": false,
     "directories": {
       "buildResources": "public",
       "output": "release/${version}"
