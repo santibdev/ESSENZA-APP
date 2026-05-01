@@ -6,6 +6,11 @@ import './assets/globals.css'
 
 const app = createApp(App)
 
+// Make app version available globally
+app.config.globalProperties.$root = {
+  appVersion: import.meta.env.VITE_APP_VERSION || '1.0.2'
+}
+
 app.use(createPinia())
 app.use(router)
 app.mount('#app')
@@ -13,6 +18,7 @@ app.mount('#app')
 // ─── Auto-Updater Debug Listeners ────────────────────────────────────────────
 if (window.electronAPI?.updater) {
   console.log('[Updater] API available, setting up listeners...')
+  console.log('[Updater] Current version:', import.meta.env.VITE_APP_VERSION || '1.0.2')
   
   window.electronAPI.updater.onStatusChange((data) => {
     console.log('[Updater] Status:', data.type, data)

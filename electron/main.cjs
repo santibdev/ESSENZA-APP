@@ -22,7 +22,16 @@ autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = true
 autoUpdater.allowPrerelease = false
 autoUpdater.allowDowngrade = false
-autoUpdater.logger = require('electron').app ? null : null
+
+// Enable detailed logging
+autoUpdater.logger = {
+  info: (msg) => console.log('[AutoUpdater]', msg),
+  warn: (msg) => console.warn('[AutoUpdater]', msg),
+  error: (msg) => console.error('[AutoUpdater]', msg),
+  debug: (msg) => console.log('[AutoUpdater DEBUG]', msg)
+}
+
+console.log('[AutoUpdater] Initialized. Repo: santibdev/ESSENZA-APP')
 
 // Check for updates every 30 minutes
 const UPDATE_CHECK_INTERVAL = 30 * 60 * 1000
