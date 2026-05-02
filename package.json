@@ -97,12 +97,13 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": ["universal"]
         }
       ],
       "icon": "public/icons.icns"
     },
     "dmg": {
+      "artifactName": "${productName}_Setup_${version}.${ext}",
       "contents": [
         {
           "x": 410,
@@ -115,11 +116,7 @@
           "y": 150,
           "type": "file"
         }
-      ],
-      "window": {
-        "width": 540,
-        "height": 380
-      }
+      ]
     },
     "nsis": {
       "oneClick": false,
