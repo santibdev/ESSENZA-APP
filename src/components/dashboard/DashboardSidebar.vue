@@ -6,6 +6,7 @@ import {
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import ProfileSettingsSheet from '@/components/dashboard/ProfileSettingsSheet.vue'
+import packageJson from '../../../package.json'
 
 type TabType = 'tracker' | 'history' | 'crm' | 'creative' | 'context' | 'customs'
 
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 
 const auth = useAuthStore()
 const profileOpen = ref(false)
+const appVersion = packageJson.version
 
 const sections = [
   {
@@ -197,6 +199,14 @@ function selectTab(id: TabType) {
             </span>
             <span class="text-sm font-medium">Cerrar Sesión</span>
           </button>
+          
+          <!-- App Version -->
+          <div class="mt-4 pt-4 border-t border-border/50">
+            <div class="px-2.5 py-2 flex items-center justify-between">
+              <p class="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Versión</p>
+              <p class="text-xs font-black text-foreground tabular-nums">v{{ appVersion }}</p>
+            </div>
+          </div>
         </div>
       </div>
     </aside>

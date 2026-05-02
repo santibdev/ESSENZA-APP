@@ -219,8 +219,11 @@ watch([searchQuery, filterModel, filterStatus, filterPriority, filterType], () =
 })
 
 // Watch modelIds to reload when they change
-watch(() => props.modelIds, () => {
-  load()
+watch(() => props.modelIds, (newIds, oldIds) => {
+  // Only reload if the actual IDs changed, not just the array reference
+  if (JSON.stringify(newIds) !== JSON.stringify(oldIds)) {
+    load()
+  }
 }, { immediate: false })
 
 onMounted(load)

@@ -111,11 +111,31 @@ async function fetchUserRealName(username: string): Promise<string> {
       userNamesCache.value[username] = res.data.name
       return res.data.name
     }
+    
+    // Si no tiene name, intentar con fullName u otros campos
+    if (res.data?.fullName) {
+      userNamesCache.value[username] = res.data.fullName
+      return res.data.fullName
+    }
+    
+    // Si no tiene fullName, intentar con firstName + lastName
+    if (res.data?.firstName && res.data?.lastName) {
+      const fullName = `${res.data.firstName} ${res.data.lastName}`
+      userNamesCache.value[username] = fullName
+      return fullName
+    }
+    
+    // Si solo tiene firstName
+    if (res.data?.firstName) {
+      userNamesCache.value[username] = res.data.firstName
+      return res.data.firstName
+    }
+    
   } catch (error) {
-    console.log(`No se pudo obtener el nombre real para ${username}`)
+    console.log(`No se pudo obtener el nombre real para ${username}:`, error)
   }
   
-  // Fallback: mapeo manual para usuarios conocidos
+  // Fallback: mapeo manual para usuarios conocidos (solo si la API falló)
   const knownUsers: Record<string, string> = {
     'yisus': 'Yisus',
     'admin': 'Administrador', 
@@ -168,12 +188,44 @@ function getDropdownPosition(modelId: number) {
 }
 
 function getSpenderDropdownPosition(key: string) {
-  const el = document.querySelector(`[data-spender-key="${key}"]`)
+  const el = document.querySelector(`[data-spender-key="${key}"]`) as HTMLInputElement
   if (!el) return { top: '0px', left: '0px' }
+  
   const rect = el.getBoundingClientRect()
-  return {
-    top: `${rect.bottom + 4}px`,
-    left: `${rect.left}px`,
+  const windowHeight = window.innerHeight
+  const spaceBelow = windowHeight - rect.bottom
+  
+  // Extraer información del key: modelId-spenderIdx-fieldType
+  const parts = key.split('-')
+  const fieldType = parts[parts.length - 1] as 'name' | 'username'
+  const inputValue = el.value || ''
+  
+  // Calcular número de sugerencias que se mostrarían
+  const suggestions = filteredSpenderSuggestions.value(fieldType, inputValue)
+  const itemHeight = 30 // altura reducida: py-1.5 + text (antes era 36)
+  const padding = 8 // padding del contenedor (py-1)
+  const dynamicHeight = Math.min(suggestions.length * itemHeight + padding, 200) // máximo 200px
+  
+  // Si no hay sugerencias, no mostrar dropdown
+  if (suggestions.length === 0) {
+    return { top: '0px', left: '0px' }
+  }
+  
+  // Si hay poco espacio abajo, abrir hacia arriba
+  if (spaceBelow < dynamicHeight + 20) {
+    return {
+      top: `${rect.top - dynamicHeight - 2}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`
+    }
+  }
+  // Por defecto, abrir hacia abajo
+  else {
+    return {
+      top: `${rect.bottom + 2}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`
+    }
   }
 }
 
@@ -404,7 +456,7 @@ watch(
               <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
                 <div class="flex items-center gap-2">
                   <User class="size-3.5 text-amber-600 dark:text-amber-400" />
-                  <span class="text-xs font-semibold text-amber-900 dark:text-amber-100">{{ lastReports[model.id].fromUserName || lastReports[model.id].fromUser }}</span>
+                  <span class="text-xs font-semibold text-amber-900 dark:text-amber-100">{{ lastReports[model.id].fromUserName }}</span>
                 </div>
                 <div class="flex items-center gap-1.5 text-[10px] text-amber-700 dark:text-amber-300">
                   <Clock class="size-3" />
@@ -448,7 +500,7 @@ watch(
                     class="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30">
                     <div class="flex flex-col gap-0.5">
                       <span class="text-xs font-semibold text-foreground">{{ sp.name || sp.username }}</span>
-                      <span v-if="sp.name && sp.username" class="text-[10px] text-muted-foreground">@{{ sp.username }}</span>
+                      <span v-if="sp.name && sp.username" class="text-[10px] text-muted-foreground">{{ sp.username }}</span>
                     </div>
                     <span v-if="sp.amount" class="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                       ${{ sp.amount }}
@@ -607,12 +659,12 @@ watch(
                     
                     <Teleport to="body">
                       <div v-if="showSpenderPopover[`${model.id}-${sIdx}-name`] && filteredSpenderSuggestions('name', sp.name).length > 0"
-                        class="fixed z-[9999] w-[180px] rounded-md border bg-popover text-popover-foreground shadow-lg"
+                        class="fixed z-[9999] rounded-md border bg-popover text-popover-foreground shadow-lg"
                         :style="getSpenderDropdownPosition(`${model.id}-${sIdx}-name`)" @mousedown.prevent>
-                        <div class="max-h-[200px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
+                        <div class="max-h-[200px] overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
                           <div v-for="suggestion in filteredSpenderSuggestions('name', sp.name)" :key="suggestion.name"
                             @click="selectSpenderSuggestion(model.id, sIdx, 'name', suggestion.name)"
-                            class="relative flex cursor-pointer select-none items-center rounded-sm px-3 py-2 text-xs outline-none hover:bg-accent hover:text-accent-foreground transition-colors">
+                            class="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-xs outline-none hover:bg-accent hover:text-accent-foreground transition-colors">
                             {{ suggestion.name }}
                           </div>
                         </div>
@@ -633,12 +685,12 @@ watch(
                     
                     <Teleport to="body">
                       <div v-if="showSpenderPopover[`${model.id}-${sIdx}-username`] && filteredSpenderSuggestions('username', sp.username).length > 0"
-                        class="fixed z-[9999] w-[180px] rounded-md border bg-popover text-popover-foreground shadow-lg"
+                        class="fixed z-[9999] rounded-md border bg-popover text-popover-foreground shadow-lg"
                         :style="getSpenderDropdownPosition(`${model.id}-${sIdx}-username`)" @mousedown.prevent>
-                        <div class="max-h-[200px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
+                        <div class="max-h-[200px] overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
                           <div v-for="suggestion in filteredSpenderSuggestions('username', sp.username)" :key="suggestion.username"
                             @click="selectSpenderSuggestion(model.id, sIdx, 'username', suggestion.username)"
-                            class="relative flex cursor-pointer select-none items-center rounded-sm px-3 py-2 text-xs outline-none hover:bg-accent hover:text-accent-foreground transition-colors">
+                            class="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-xs outline-none hover:bg-accent hover:text-accent-foreground transition-colors">
                             {{ suggestion.username }}
                           </div>
                         </div>
