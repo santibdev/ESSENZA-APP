@@ -15,7 +15,11 @@
     "clean": "rm -rf dist node_modules/.vite",
     "deploy": "node scripts/deploy.js",
     "deploy:minor": "node scripts/deploy.js minor",
-    "deploy:major": "node scripts/deploy.js major"
+    "deploy:major": "node scripts/deploy.js major",
+    "auto-deploy": "node scripts/auto-deploy.js",
+    "ship": "node scripts/auto-deploy.js patch",
+    "ship:minor": "node scripts/auto-deploy.js minor",
+    "ship:major": "node scripts/auto-deploy.js major"
   },
   "dependencies": {
     "active-win": "^8.2.1",

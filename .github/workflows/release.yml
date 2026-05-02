@@ -2,8 +2,14 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  pull_request:
+    branches:
+      - main
 
 jobs:
   release:
@@ -35,13 +41,18 @@ jobs:
     - name: Build application
       run: npm run build
       
+    - name: Auto-increment version
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: npm version patch --no-git-tag-version
+      
     - name: Build and release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: npm run dist
       
     - name: Upload Windows artifacts
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4
       with:
         name: windows-release
@@ -51,7 +62,7 @@ jobs:
           release/**/*.blockmap
           
     - name: Upload macOS artifacts
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4
       with:
         name: macos-release
