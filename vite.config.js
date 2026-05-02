@@ -33,17 +33,10 @@ export default defineConfig({
         drop_console: true,
         drop_debugger: true,
         pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
-        passes: 3, // Increased from 2 to 3 for better compression
-        unsafe: true,
-        unsafe_comps: true,
-        unsafe_math: true,
-        unsafe_methods: true
+        passes: 2
       },
       mangle: {
-        safari10: true,
-        properties: {
-          regex: /^_/
-        }
+        safari10: true
       },
       format: {
         comments: false
